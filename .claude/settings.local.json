@@ -12,7 +12,24 @@
       "Bash(powershell.exe -Command \"Get-Command python*; pip --version\")",
       "Bash(gh:*)",
       "Bash(winget install:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri ''https://github.com/cli/cli/releases/download/v2.63.2/gh_2.63.2_windows_amd64.msi'' -OutFile ''$env:TEMP\\\\gh_installer.msi''; Start-Process msiexec.exe -ArgumentList ''/i'', ''$env:TEMP\\\\gh_installer.msi'', ''/quiet'', ''/norestart'' -Wait\")",
+      "Bash(where gh:*)",
+      "Bash(cmd /c \"gh --version\")",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(git config:*)",
+      "Bash(powershell:*)",
+      "Bash(echo $GITHUB_TOKEN)",
+      "WebFetch(domain:www.ebay.co.uk)",
+      "Bash(start cmd /k \"gh auth login\")",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" remote -v)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" repo create snout --public --description \"Python Flask REST API for eBay price analysis - helps resellers compare sold vs active listing prices\" --source \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" --remote origin --push)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" log --oneline -5)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" diff .claude/settings.local.json)",
+      "Bash(where /r \"%USERPROFILE%\" git-manager.md)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" add \".claude/settings.local.json\" \".claude/agents/ebay-uk-price-researcher.md\")"
     ]
   }
 }
