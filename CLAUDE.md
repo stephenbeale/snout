@@ -63,6 +63,7 @@ Run `/agents` in Claude Code to see configured agents, or check the `.claude/age
 
 ### Currently Configured Agents
 - **ebay-api-builder** - Specialized agent for building, testing, and extending eBay API wrappers
+- **ebay-uk-price-researcher** - eBay UK market research and profitability analysis agent with custom seller costs
 
 ### Creating Custom Agents
 To create a new agent:
@@ -169,3 +170,32 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 **Next Steps:**
 - User can optionally configure Windows Terminal `bellStyle` setting for tab/taskbar flashing
 - Test notification behavior with different `bellStyle` values to find preferred configuration
+
+### 2026-01-10 - Agent Development and Price Research
+
+**Work Completed:**
+- Created and configured `ebay-uk-price-researcher` agent in `.claude/agents/` with:
+  - Strict scope constraints to prevent auto-expanding searches to variants (steelbook, 4K, etc.)
+  - User-specific seller costs: £2.80 postage, 12.8% + £0.30 eBay fees
+  - Profitability calculation formulas for quick decision-making
+  - Minimum price calculation logic to beat competition while maximizing profit
+- Updated global `git-manager` agent (in `~/.claude/agents/`) with:
+  - Numbered branch naming convention: `type/<number>-<description>`
+  - Examples: `feature/1-api-endpoints`, `refactor/1-modularize-services`
+  - Auto-increment logic to check existing branches and avoid conflicts
+- Conducted price research for Black Panther: Wakanda Forever Blu-ray:
+  - Found cheapest competition at £6.99 with free P&P
+  - Calculated optimal listing price: £6.98 = approximately £3 profit after fees/postage
+  - Demonstrated agent's profitability analysis capabilities
+
+**Technical Notes:**
+- The `ebay-uk-price-researcher` agent is project-specific and lives in `.claude/agents/`
+- The `git-manager` agent is global and lives in `~/.claude/agents/` for use across all projects
+- Agent configuration uses YAML frontmatter for metadata (name, description, model, color)
+- Price research workflow validates the agent's ability to find competitive pricing and calculate profitability
+- Numbered branch naming helps track feature development chronologically
+
+**Next Steps:**
+- Test the updated git-manager agent with actual branch creation
+- Use ebay-uk-price-researcher for additional product research to validate calculations
+- Consider adding more domain-specific agents as workflows emerge
