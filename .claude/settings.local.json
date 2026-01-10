@@ -5,7 +5,14 @@
       "Bash(git init:*)",
       "Bash(python -m pytest:*)",
       "WebSearch",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(py -m pytest \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\\\\snout\\\\tests\" -v)",
+      "Bash(cmd.exe /c \"cd C:\\\\Users\\\\sjbeale\\\\source\\\\claude\\\\snout && py -m pytest tests\\\\ -v\")",
+      "Bash(powershell.exe -Command \"Get-Command python*; pip --version\")",
+      "Bash(gh:*)",
+      "Bash(winget install:*)",
+      "Bash(dir:*)"
     ]
   }
 }

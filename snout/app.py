@@ -1,170 +1,52 @@
 """
 Snout - eBay Reseller Price Lookup API
 """
+import logging
 import os
-import statistics
-from flask import Flask, jsonify, request
-import requests
-from functools import lru_cache
-from datetime import datetime, timedelta
 
+from flask import Flask, jsonify, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from .config import CONDITION_MAP, SORT_MAP, Config, setup_logging
+from .services import EbayFindingService, calculate_price_stats
+from .services.ebay_service import EbayApiError, SearchQuery
+from .services.price_analyzer import compare_prices
+from .utils.validators import ValidationError, validate_keywords, validate_price
+
+# Initialize logging
+logger = setup_logging(
+    level=logging.DEBUG if os.environ.get("FLASK_DEBUG") else logging.INFO
+)
+
+# Load configuration
+config = Config.from_env()
+
+# Initialize Flask app
 app = Flask(__name__)
 
-# eBay API Configuration
-EBAY_APP_ID = os.environ.get("EBAY_APP_ID")
-EBAY_CERT_ID = os.environ.get("EBAY_CERT_ID")
-EBAY_OAUTH_TOKEN = os.environ.get("EBAY_OAUTH_TOKEN")
+# Initialize rate limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[config.rate_limit_default],
+    storage_uri="memory://",
+)
 
-# eBay API endpoints
-EBAY_FINDING_API = "https://svcs.ebay.com/services/search/FindingService/v1"
-EBAY_BROWSE_API = "https://api.ebay.com/buy/browse/v1"
-
-# eBay condition ID mapping
-CONDITION_MAP = {
-    "new": "1000",
-    "open_box": "1500",
-    "refurbished": "2000",
-    "used": "3000",
-    "for_parts": "7000",
-}
-
-# eBay sort order mapping
-SORT_MAP = {
-    "best_match": "BestMatch",
-    "price_asc": "PricePlusShippingLowest",
-    "price_desc": "PricePlusShippingHighest",
-    "date_asc": "EndTimeSoonest",
-    "date_desc": "StartTimeNewest",
-}
+# Initialize eBay service
+ebay_service = EbayFindingService(config)
 
 
-def get_oauth_token():
-    """Get OAuth token from environment or fetch a new one."""
-    if EBAY_OAUTH_TOKEN:
-        return EBAY_OAUTH_TOKEN
-    return None
-
-
-def search_ebay_finding_api(keywords, sold=False, condition=None, min_price=None, max_price=None, sort=None):
-    """
-    Search eBay using the Finding API.
-    Set sold=True to search completed/sold listings.
-    """
-    operation = "findCompletedItems" if sold else "findItemsByKeywords"
-
-    params = {
-        "OPERATION-NAME": operation,
-        "SERVICE-VERSION": "1.0.0",
-        "SECURITY-APPNAME": EBAY_APP_ID,
-        "RESPONSE-DATA-FORMAT": "JSON",
-        "REST-PAYLOAD": "",
-        "keywords": keywords,
-        "paginationInput.entriesPerPage": "100",
-    }
-
-    # Sort order
-    if sort and sort.lower() in SORT_MAP:
-        params["sortOrder"] = SORT_MAP[sort.lower()]
-
-    filter_index = 0
-
-    if sold:
-        # Filter for sold items only (not just ended)
-        params[f"itemFilter({filter_index}).name"] = "SoldItemsOnly"
-        params[f"itemFilter({filter_index}).value"] = "true"
-        filter_index += 1
-
-    # Condition filter
-    if condition and condition.lower() in CONDITION_MAP:
-        params[f"itemFilter({filter_index}).name"] = "Condition"
-        params[f"itemFilter({filter_index}).value"] = CONDITION_MAP[condition.lower()]
-        filter_index += 1
-
-    # Price range filters
-    if min_price is not None:
-        params[f"itemFilter({filter_index}).name"] = "MinPrice"
-        params[f"itemFilter({filter_index}).value"] = str(min_price)
-        filter_index += 1
-
-    if max_price is not None:
-        params[f"itemFilter({filter_index}).name"] = "MaxPrice"
-        params[f"itemFilter({filter_index}).value"] = str(max_price)
-        filter_index += 1
-
-    response = requests.get(EBAY_FINDING_API, params=params, timeout=30)
-    response.raise_for_status()
-    return response.json()
-
-
-def parse_finding_results(data, sold=False):
-    """Parse results from the Finding API."""
-    results = []
-
-    response_key = "findCompletedItemsResponse" if sold else "findItemsByKeywordsResponse"
-
-    if response_key not in data:
-        return results
-
-    response = data[response_key][0]
-
-    if response.get("ack", [None])[0] != "Success":
-        return results
-
-    search_result = response.get("searchResult", [{}])[0]
-    items = search_result.get("item", [])
-
-    for item in items:
-        try:
-            price_info = item.get("sellingStatus", [{}])[0]
-            current_price = price_info.get("currentPrice", [{}])[0]
-
-            result = {
-                "title": item.get("title", [""])[0],
-                "price": float(current_price.get("__value__", 0)),
-                "currency": current_price.get("@currencyId", "USD"),
-                "item_id": item.get("itemId", [""])[0],
-                "url": item.get("viewItemURL", [""])[0],
-                "condition": item.get("condition", [{}])[0].get("conditionDisplayName", ["Unknown"])[0] if item.get("condition") else "Unknown",
-                "listing_type": item.get("listingInfo", [{}])[0].get("listingType", ["Unknown"])[0],
-            }
-
-            if sold:
-                end_time = item.get("listingInfo", [{}])[0].get("endTime", [""])[0]
-                result["sold_date"] = end_time
-
-            results.append(result)
-        except (KeyError, IndexError, ValueError):
-            continue
-
-    return results
-
-
-def calculate_price_stats(items):
-    """Calculate price statistics from a list of items."""
-    if not items:
-        return None
-
-    prices = [item["price"] for item in items if item["price"] > 0]
-
-    if not prices:
-        return None
-
-    return {
-        "count": len(prices),
-        "average": round(statistics.mean(prices), 2),
-        "median": round(statistics.median(prices), 2),
-        "min": round(min(prices), 2),
-        "max": round(max(prices), 2),
-        "std_dev": round(statistics.stdev(prices), 2) if len(prices) > 1 else 0,
-    }
-
-
-def parse_filter_params():
+def parse_filter_params() -> dict:
     """Parse common filter parameters from request args."""
     condition = request.args.get("condition")
     min_price = request.args.get("min_price", type=float)
     max_price = request.args.get("max_price", type=float)
     sort = request.args.get("sort")
+
+    # Validate prices
+    min_price = validate_price(min_price, "min_price")
+    max_price = validate_price(max_price, "max_price")
 
     return {
         "condition": condition,
@@ -174,7 +56,12 @@ def parse_filter_params():
     }
 
 
-def build_filters_response(condition, min_price, max_price, sort=None):
+def build_filters_response(
+    condition: str | None,
+    min_price: float | None,
+    max_price: float | None,
+    sort: str | None = None,
+) -> dict | None:
     """Build filters dict for response."""
     filters = {}
     if condition:
@@ -186,6 +73,77 @@ def build_filters_response(condition, min_price, max_price, sort=None):
     if sort:
         filters["sort"] = sort
     return filters if filters else None
+
+
+def items_to_dicts(items) -> list[dict]:
+    """Convert EbayItem objects to dictionaries."""
+    result = []
+    for item in items:
+        d = {
+            "title": item.title,
+            "price": item.price,
+            "currency": item.currency,
+            "item_id": item.item_id,
+            "url": item.url,
+            "condition": item.condition,
+            "listing_type": item.listing_type,
+        }
+        if item.sold_date:
+            d["sold_date"] = item.sold_date
+        result.append(d)
+    return result
+
+
+def execute_search(keywords: str, sold: bool, filters: dict) -> tuple[dict, int]:
+    """
+    Execute a search and return the response.
+
+    Args:
+        keywords: Search keywords
+        sold: Whether to search sold items
+        filters: Filter parameters
+
+    Returns:
+        Tuple of (response_dict, status_code)
+    """
+    query = SearchQuery(
+        keywords=keywords,
+        sold=sold,
+        condition=filters["condition"],
+        min_price=filters["min_price"],
+        max_price=filters["max_price"],
+        sort=filters["sort"],
+    )
+
+    items = ebay_service.search(query)
+    stats = calculate_price_stats(items)
+
+    return {
+        "query": keywords,
+        "type": "sold" if sold else "active",
+        "filters": build_filters_response(
+            filters["condition"],
+            filters["min_price"],
+            filters["max_price"],
+            filters["sort"],
+        ),
+        "stats": stats.to_dict() if stats else None,
+        "items": items_to_dicts(items),
+    }, 200
+
+
+@app.errorhandler(ValidationError)
+def handle_validation_error(error: ValidationError):
+    """Handle validation errors."""
+    logger.warning("Validation error: %s", error.message)
+    return jsonify({"error": error.message, "field": error.field}), 400
+
+
+@app.errorhandler(EbayApiError)
+def handle_ebay_error(error: EbayApiError):
+    """Handle eBay API errors."""
+    logger.error("eBay API error: %s", str(error))
+    return jsonify({"error": "Failed to fetch data from eBay"}), 502
 
 
 @app.route("/")
@@ -210,6 +168,7 @@ def index():
 
 
 @app.route("/search/sold")
+@limiter.limit(config.rate_limit_search)
 def search_sold():
     """
     Search for sold/completed eBay listings.
@@ -221,40 +180,23 @@ def search_sold():
         max_price: Maximum price filter
         sort: Sort order (best_match, price_asc, price_desc, date_asc, date_desc)
     """
-    keywords = request.args.get("q")
+    keywords = validate_keywords(
+        request.args.get("q"),
+        max_length=config.max_keyword_length,
+    )
 
-    if not keywords:
-        return jsonify({"error": "Missing required parameter: q"}), 400
-
-    if not EBAY_APP_ID:
-        return jsonify({"error": "EBAY_APP_ID not configured"}), 500
+    if not config.is_ebay_configured:
+        return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
+    logger.info("Search sold: keywords=%s, filters=%s", keywords, filters)
 
-    try:
-        data = search_ebay_finding_api(
-            keywords,
-            sold=True,
-            condition=filters["condition"],
-            min_price=filters["min_price"],
-            max_price=filters["max_price"],
-            sort=filters["sort"],
-        )
-        items = parse_finding_results(data, sold=True)
-        stats = calculate_price_stats(items)
-
-        return jsonify({
-            "query": keywords,
-            "type": "sold",
-            "filters": build_filters_response(filters["condition"], filters["min_price"], filters["max_price"], filters["sort"]),
-            "stats": stats,
-            "items": items,
-        })
-    except requests.RequestException as e:
-        return jsonify({"error": f"eBay API error: {str(e)}"}), 502
+    response, status = execute_search(keywords, sold=True, filters=filters)
+    return jsonify(response), status
 
 
 @app.route("/search/active")
+@limiter.limit(config.rate_limit_search)
 def search_active():
     """
     Search for active eBay listings.
@@ -266,41 +208,24 @@ def search_active():
         max_price: Maximum price filter
         sort: Sort order (best_match, price_asc, price_desc, date_asc, date_desc)
     """
-    keywords = request.args.get("q")
+    keywords = validate_keywords(
+        request.args.get("q"),
+        max_length=config.max_keyword_length,
+    )
 
-    if not keywords:
-        return jsonify({"error": "Missing required parameter: q"}), 400
-
-    if not EBAY_APP_ID:
-        return jsonify({"error": "EBAY_APP_ID not configured"}), 500
+    if not config.is_ebay_configured:
+        return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
+    logger.info("Search active: keywords=%s, filters=%s", keywords, filters)
 
-    try:
-        data = search_ebay_finding_api(
-            keywords,
-            sold=False,
-            condition=filters["condition"],
-            min_price=filters["min_price"],
-            max_price=filters["max_price"],
-            sort=filters["sort"],
-        )
-        items = parse_finding_results(data, sold=False)
-        stats = calculate_price_stats(items)
-
-        return jsonify({
-            "query": keywords,
-            "type": "active",
-            "filters": build_filters_response(filters["condition"], filters["min_price"], filters["max_price"], filters["sort"]),
-            "stats": stats,
-            "items": items,
-        })
-    except requests.RequestException as e:
-        return jsonify({"error": f"eBay API error: {str(e)}"}), 502
+    response, status = execute_search(keywords, sold=False, filters=filters)
+    return jsonify(response), status
 
 
 @app.route("/search/compare")
-def compare_prices():
+@limiter.limit(config.rate_limit_search)
+def compare_prices_endpoint():
     """
     Compare sold vs active prices for the same search.
 
@@ -310,64 +235,59 @@ def compare_prices():
         min_price: Minimum price filter
         max_price: Maximum price filter
     """
-    keywords = request.args.get("q")
+    keywords = validate_keywords(
+        request.args.get("q"),
+        max_length=config.max_keyword_length,
+    )
 
-    if not keywords:
-        return jsonify({"error": "Missing required parameter: q"}), 400
-
-    if not EBAY_APP_ID:
-        return jsonify({"error": "EBAY_APP_ID not configured"}), 500
+    if not config.is_ebay_configured:
+        return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
+    logger.info("Compare prices: keywords=%s, filters=%s", keywords, filters)
 
-    try:
-        # Fetch both sold and active listings
-        sold_data = search_ebay_finding_api(
-            keywords,
-            sold=True,
-            condition=filters["condition"],
-            min_price=filters["min_price"],
-            max_price=filters["max_price"],
-        )
-        active_data = search_ebay_finding_api(
-            keywords,
-            sold=False,
-            condition=filters["condition"],
-            min_price=filters["min_price"],
-            max_price=filters["max_price"],
-        )
+    # Build queries for concurrent execution
+    sold_query = SearchQuery(
+        keywords=keywords,
+        sold=True,
+        condition=filters["condition"],
+        min_price=filters["min_price"],
+        max_price=filters["max_price"],
+        sort=filters["sort"],
+    )
+    active_query = SearchQuery(
+        keywords=keywords,
+        sold=False,
+        condition=filters["condition"],
+        min_price=filters["min_price"],
+        max_price=filters["max_price"],
+        sort=filters["sort"],
+    )
 
-        sold_items = parse_finding_results(sold_data, sold=True)
-        active_items = parse_finding_results(active_data, sold=False)
+    # Execute searches concurrently
+    sold_items, active_items = ebay_service.search_concurrent(sold_query, active_query)
 
-        sold_stats = calculate_price_stats(sold_items)
-        active_stats = calculate_price_stats(active_items)
+    sold_stats = calculate_price_stats(sold_items)
+    active_stats = calculate_price_stats(active_items)
+    comparison = compare_prices(sold_stats, active_stats)
 
-        # Calculate price difference if both have data
-        comparison = None
-        if sold_stats and active_stats:
-            avg_diff = active_stats["average"] - sold_stats["average"]
-            comparison = {
-                "avg_price_difference": round(avg_diff, 2),
-                "avg_price_difference_percent": round((avg_diff / sold_stats["average"]) * 100, 1) if sold_stats["average"] else 0,
-                "recommendation": "underpriced" if avg_diff < 0 else "overpriced" if avg_diff > 0 else "fair",
-            }
-
-        return jsonify({
-            "query": keywords,
-            "filters": build_filters_response(filters["condition"], filters["min_price"], filters["max_price"]),
-            "sold": {
-                "stats": sold_stats,
-                "sample_count": len(sold_items),
-            },
-            "active": {
-                "stats": active_stats,
-                "sample_count": len(active_items),
-            },
-            "comparison": comparison,
-        })
-    except requests.RequestException as e:
-        return jsonify({"error": f"eBay API error: {str(e)}"}), 502
+    return jsonify({
+        "query": keywords,
+        "filters": build_filters_response(
+            filters["condition"],
+            filters["min_price"],
+            filters["max_price"],
+        ),
+        "sold": {
+            "stats": sold_stats.to_dict() if sold_stats else None,
+            "sample_count": len(sold_items),
+        },
+        "active": {
+            "stats": active_stats.to_dict() if active_stats else None,
+            "sample_count": len(active_items),
+        },
+        "comparison": comparison.to_dict() if comparison else None,
+    })
 
 
 @app.route("/health")
@@ -375,8 +295,19 @@ def health():
     """Health check endpoint."""
     return jsonify({
         "status": "healthy",
-        "ebay_configured": bool(EBAY_APP_ID),
+        "ebay_configured": config.is_ebay_configured,
     })
+
+
+def create_app(test_config: Config | None = None) -> Flask:
+    """Application factory for testing."""
+    global config, ebay_service
+
+    if test_config:
+        config = test_config
+        ebay_service = EbayFindingService(config)
+
+    return app
 
 
 if __name__ == "__main__":
