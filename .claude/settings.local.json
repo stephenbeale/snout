@@ -37,7 +37,12 @@
       "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\sjbeale\\\\source\\\\claude\\\\snout && py -m pytest tests -v 2>&1\")",
       "Bash(test -f \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\\\\nul\")",
       "Bash(powershell.exe -Command \"cd C:\\\\Users\\\\sjbeale\\\\source\\\\claude\\\\snout; py -m pytest tests -v\")",
-      "Bash(powershell.exe -Command \"Get-Command python* | Select-Object Name, Source\")"
+      "Bash(powershell.exe -Command \"Get-Command python* | Select-Object Name, Source\")",
+      "Bash(findstr:*)",
+      "Bash(powershell.exe -Command \"where.exe python\")",
+      "Bash(powershell.exe -Command \"pip --version; pip show pytest\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\Users\\\\sjbeale'' -Filter ''python.exe'' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5 FullName\")",
+      "Bash(powershell.exe -Command \"Test-Path ''C:\\\\Python*''; Get-ChildItem ''C:\\\\Program Files\\\\Python*'' -ErrorAction SilentlyContinue | Select-Object Name\")"
     ]
   }
 }
