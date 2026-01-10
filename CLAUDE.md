@@ -199,3 +199,30 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - Test the updated git-manager agent with actual branch creation
 - Use ebay-uk-price-researcher for additional product research to validate calculations
 - Consider adding more domain-specific agents as workflows emerge
+
+### 2026-01-10 - Test Suite Updates and Notification Testing
+
+**Work Completed:**
+- Updated `snout/tests/test_app.py` to work with refactored modular architecture
+  - Modified tests to import from new modules (config, services.ebay_service, services.price_analyzer)
+  - Updated mocking strategy to mock service layer instead of requests.get
+  - Changed test assertions to work with dataclass models (EbayItem, PriceStats)
+  - All tests now properly validate the service layer separation
+- Tested Claude Code notification hooks with sound notifications
+- Experimented with Windows Terminal bellStyle configuration at:
+  `C:\Users\sjbeale\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`
+  - Changed bellStyle from ["window", "taskbar"] to "all"
+  - Sound notification (beep) working correctly
+  - Visual tab/taskbar flash not triggering as expected (may require additional terminal configuration)
+
+**Technical Notes:**
+- Test suite now properly mocks EbayFindingService and Config classes
+- Tests validate the separation between service layer and REST endpoints
+- Windows Terminal bellStyle options: "audible", "visual", "all", or array combinations
+- Bell character (`\a`) from notification hook triggers terminal bell events
+- Visual notifications may depend on Windows focus assist settings or terminal version
+
+**Next Steps:**
+- Investigate why Windows Terminal visual flash isn't triggering despite bellStyle: "all"
+- Consider testing with different Windows Terminal versions or Windows notification settings
+- Run full test suite to verify all tests pass with the updated mocking approach
