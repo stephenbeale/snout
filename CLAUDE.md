@@ -146,3 +146,26 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - GitHub CLI was installed to C:\Program Files\GitHub CLI\
 - New terminal session was required for PATH updates to take effect
 - Repository will be created under the authenticated user's GitHub account
+
+### 2026-01-10 - Claude Code Notification Configuration
+
+**Work Completed:**
+- Configured sound notifications for Claude Code CLI using notification hooks
+- Added hook to `C:\Users\sjbeale\.claude\settings.json` with PowerShell command:
+  ```json
+  "notificationHooks": {
+    "onFinish": "powershell -Command \"[console]::beep(800, 500); Write-Host \\\"`a\\\"\""
+  }
+  ```
+- Discussed Windows Terminal tab/taskbar flashing configuration via `bellStyle` settings
+
+**Technical Notes:**
+- Hook triggers a 800Hz beep for 500ms plus terminal bell character on task completion
+- The bell character (`\a`) enables Windows Terminal visual notifications when configured
+- Windows Terminal `bellStyle` can be set to "taskbar", "all", or "audible" in settings.json
+- Settings location for Windows Terminal: `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_*\LocalState\settings.json`
+- The notification hook runs after Claude Code finishes processing user requests
+
+**Next Steps:**
+- User can optionally configure Windows Terminal `bellStyle` setting for tab/taskbar flashing
+- Test notification behavior with different `bellStyle` values to find preferred configuration
