@@ -157,6 +157,8 @@ def index():
             "/search/sold": "Search sold/completed listings",
             "/search/active": "Search active listings",
             "/search/compare": "Compare sold vs active prices",
+            "/config/status": "Check credential configuration status",
+            "/health": "Health check",
         },
         "filters": {
             "condition": list(CONDITION_MAP.keys()),
@@ -296,6 +298,27 @@ def health():
     return jsonify({
         "status": "healthy",
         "ebay_configured": config.is_ebay_configured,
+    })
+
+
+@app.route("/config/status")
+def config_status():
+    """
+    Get configuration status showing which credentials are configured.
+
+    Returns credential status without exposing actual values.
+    For local development use only.
+    """
+    credentials = config.get_credentials_status(include_masked=True)
+
+    return jsonify({
+        "credentials": credentials,
+        "summary": {
+            "all_configured": all(c["configured"] for c in credentials.values()),
+            "ebay_ready": config.is_ebay_configured,
+            "configured_count": sum(1 for c in credentials.values() if c["configured"]),
+            "total_count": len(credentials),
+        },
     })
 
 

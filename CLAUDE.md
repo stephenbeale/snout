@@ -200,6 +200,35 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - Use ebay-uk-price-researcher for additional product research to validate calculations
 - Consider adding more domain-specific agents as workflows emerge
 
+### 2026-01-10 - Test Suite Updates for Modular Architecture
+
+**Work Completed:**
+- Rewrote `snout/tests/test_app.py` to work with the new modular architecture
+- Updated all imports to use new module structure:
+  - `snout.config` for Config class
+  - `snout.services.ebay_service` for EbayFindingService
+  - `snout.services.price_analyzer` for PriceAnalyzer
+  - `snout.utils.validators` for ValidationError
+- Refactored `TestParseResults` to test `EbayFindingService._parse_results()` with EbayItem objects
+- Updated `TestCalculatePriceStats` to create EbayItem objects instead of dicts
+- Fixed mock paths in `TestSearchEndpoints` and `TestCompareEndpoint` to mock `app.ebay_service` and `app.config`
+- Committed test changes in commit 7211140
+
+**Work In Progress:**
+- Test suite not yet verified due to Python path issues in shell environment
+- Tests need to be run to verify they pass with the new architecture
+
+**Next Steps:**
+- Run pytest to verify all tests pass: `python -m pytest snout/tests/ -v`
+- Add integration tests for the refactored service layer
+- Consider adding coverage reporting with pytest-cov
+- Complete agent-orchestrator.md file at `C:\Users\sjbeale\.claude\agents\agent-orchestrator.md`
+
+**Technical Notes:**
+- Mock paths changed from mocking functions directly to mocking methods on service instances (e.g., `app.ebay_service.search_active()`)
+- EbayItem dataclass requires proper instantiation in tests instead of plain dicts
+- The _parse_results method is now a private method of EbayFindingService, accessed for testing purposes
+
 ### 2026-01-10 - Test Suite Updates and Notification Testing
 
 **Work Completed:**
@@ -226,3 +255,32 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - Investigate why Windows Terminal visual flash isn't triggering despite bellStyle: "all"
 - Consider testing with different Windows Terminal versions or Windows notification settings
 - Run full test suite to verify all tests pass with the updated mocking approach
+
+### 2026-01-10 - Session Closure and Test Architecture Review
+
+**Work Completed:**
+- Reviewed test file changes from previous session (already committed in 7211140)
+- Updated CLAUDE.md session notes to document current session work
+- Verified all test updates are properly committed to repository
+
+**Session Summary:**
+- Test suite was successfully rewritten to work with modular architecture
+- All imports updated to use new module structure (config, services, utils)
+- Mock paths updated to work with service layer instead of direct function mocking
+- Changes properly committed but not yet verified by running pytest
+
+**Work In Progress:**
+- Tests have not been executed due to Python path issues in shell environment
+- Need manual verification that tests pass with new architecture
+
+**Next Steps:**
+- Run pytest manually to verify all tests pass: `python -m pytest snout/tests/ -v`
+- Complete `C:\Users\sjbeale\.claude\agents\agent-orchestrator.md` file
+- Consider adding pytest to CI/CD pipeline once tests are verified
+- Add coverage reporting with pytest-cov
+
+**Technical Notes:**
+- Test file changes committed in 7211140: "Update test suite for refactored modular architecture"
+- Documentation updated in 43b8f3d: "Update session notes: Test suite updates and notification testing"
+- Only uncommitted file is `.claude/settings.local.json` (local configuration, should not be committed)
+- The `rip-disc.ps1` file is untracked and unrelated to this project
