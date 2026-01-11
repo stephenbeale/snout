@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import build_filters_response
-from config import CONDITION_MAP, SORT_MAP, Config
+from config import CONDITION_MAP, SORT_MAP, Config, _mask_credential
 from services.ebay_service import EbayFindingService, EbayItem, SearchQuery
 from services.price_analyzer import calculate_price_stats, PriceStats
 
@@ -422,3 +422,152 @@ class TestSortMap:
         assert "price_asc" in SORT_MAP
         assert "price_desc" in SORT_MAP
         assert SORT_MAP["best_match"] == "BestMatch"
+
+
+class TestConfigStatusEndpoint:
+    """Tests for the /config/status endpoint."""
+
+    def test_config_status_returns_credentials_info(self, client):
+        """Test config status endpoint returns credential information."""
+        response = client.get("/config/status")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "credentials" in data
+        assert "summary" in data
+        assert "ebay_app_id" in data["credentials"]
+        assert "ebay_cert_id" in data["credentials"]
+        assert "ebay_oauth_token" in data["credentials"]
+
+    def test_config_status_has_configured_flags(self, client):
+        """Test that each credential has a configured flag."""
+        response = client.get("/config/status")
+        data = response.get_json()
+
+        for cred_name in ["ebay_app_id", "ebay_cert_id", "ebay_oauth_token"]:
+            assert "configured" in data["credentials"][cred_name]
+            assert isinstance(data["credentials"][cred_name]["configured"], bool)
+
+    def test_config_status_has_preview(self, client):
+        """Test that each credential has a preview field."""
+        response = client.get("/config/status")
+        data = response.get_json()
+
+        for cred_name in ["ebay_app_id", "ebay_cert_id", "ebay_oauth_token"]:
+            assert "preview" in data["credentials"][cred_name]
+
+    def test_config_status_summary(self, client):
+        """Test that summary contains expected fields."""
+        response = client.get("/config/status")
+        data = response.get_json()
+
+        summary = data["summary"]
+        assert "all_configured" in summary
+        assert "ebay_ready" in summary
+        assert "configured_count" in summary
+        assert "total_count" in summary
+        assert summary["total_count"] == 3
+
+
+class TestMaskCredential:
+    """Tests for credential masking function."""
+
+    def test_mask_normal_string(self):
+        """Test masking a normal length credential."""
+        result = _mask_credential("my_secret_api_key_12345")
+        assert result == "my_s***2345"
+        assert "secret" not in result
+
+    def test_mask_short_string(self):
+        """Test masking a short credential."""
+        result = _mask_credential("short")
+        assert result == "*****"
+
+    def test_mask_none(self):
+        """Test masking None value."""
+        result = _mask_credential(None)
+        assert result is None
+
+    def test_mask_empty_string(self):
+        """Test masking empty string."""
+        result = _mask_credential("")
+        assert result is None
+
+    def test_mask_exactly_eight_chars(self):
+        """Test masking string with exactly 8 characters (edge case)."""
+        result = _mask_credential("12345678")
+        assert result == "********"
+
+    def test_mask_nine_chars(self):
+        """Test masking string with 9 characters (just over threshold)."""
+        result = _mask_credential("123456789")
+        assert result == "1234***6789"
+
+
+class TestConfigCredentialsStatus:
+    """Tests for Config.get_credentials_status method."""
+
+    def test_all_credentials_configured(self):
+        """Test status when all credentials are configured."""
+        config = Config(
+            ebay_app_id="test_app_id",
+            ebay_cert_id="test_cert_id",
+            ebay_oauth_token="test_token",
+        )
+        status = config.get_credentials_status()
+
+        assert status["ebay_app_id"]["configured"] is True
+        assert status["ebay_cert_id"]["configured"] is True
+        assert status["ebay_oauth_token"]["configured"] is True
+
+    def test_no_credentials_configured(self):
+        """Test status when no credentials are configured."""
+        config = Config(
+            ebay_app_id=None,
+            ebay_cert_id=None,
+            ebay_oauth_token=None,
+        )
+        status = config.get_credentials_status()
+
+        assert status["ebay_app_id"]["configured"] is False
+        assert status["ebay_cert_id"]["configured"] is False
+        assert status["ebay_oauth_token"]["configured"] is False
+
+    def test_partial_credentials(self):
+        """Test status with only some credentials configured."""
+        config = Config(
+            ebay_app_id="test_app_id",
+            ebay_cert_id=None,
+            ebay_oauth_token="test_token",
+        )
+        status = config.get_credentials_status()
+
+        assert status["ebay_app_id"]["configured"] is True
+        assert status["ebay_cert_id"]["configured"] is False
+        assert status["ebay_oauth_token"]["configured"] is True
+
+    def test_include_masked_true(self):
+        """Test status with masked previews included."""
+        config = Config(
+            ebay_app_id="test_app_id_12345",
+            ebay_cert_id=None,
+            ebay_oauth_token=None,
+        )
+        status = config.get_credentials_status(include_masked=True)
+
+        assert "preview" in status["ebay_app_id"]
+        assert status["ebay_app_id"]["preview"] == "test***2345"
+        assert status["ebay_cert_id"]["preview"] is None
+
+    def test_include_masked_false(self):
+        """Test status without masked previews."""
+        config = Config(
+            ebay_app_id="test_app_id",
+            ebay_cert_id=None,
+            ebay_oauth_token=None,
+        )
+        status = config.get_credentials_status(include_masked=False)
+
+        assert "preview" not in status["ebay_app_id"]
+        assert "preview" not in status["ebay_cert_id"]
+        assert "preview" not in status["ebay_oauth_token"]
