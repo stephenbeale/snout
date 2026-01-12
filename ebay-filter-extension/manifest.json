@@ -5,7 +5,8 @@
   "description": "Quick toggle filters for eBay UK price research - Sold Items, Condition, UK Only, Buy It Now",
   "permissions": [
     "activeTab",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "https://www.ebay.co.uk/*"

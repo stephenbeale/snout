@@ -2,10 +2,10 @@
 
 // Filter parameter configuration
 const FILTERS = [
-  { id: 'toggle-sold', param: 'LH_Sold', value: '1' },
-  { id: 'toggle-new', param: 'LH_ItemCondition', value: '4' },
-  { id: 'toggle-uk', param: 'LH_PrefLoc', value: '1' },
-  { id: 'toggle-bin', param: 'LH_BIN', value: '1' }
+  { id: 'toggle-sold', param: 'LH_Sold', value: '1', storageKey: 'filter_sold' },
+  { id: 'toggle-new', param: 'LH_ItemCondition', value: '4', storageKey: 'filter_new' },
+  { id: 'toggle-uk', param: 'LH_PrefLoc', value: '1', storageKey: 'filter_uk' },
+  { id: 'toggle-bin', param: 'LH_BIN', value: '1', storageKey: 'filter_bin' }
 ];
 
 // Check if URL is on eBay UK
@@ -18,25 +18,28 @@ function isEbayUK(url) {
   }
 }
 
-// Parse current URL and check if a filter parameter is active
-function isFilterActive(url, param, value) {
+// Check if URL is an eBay search page
+function isSearchPage(url) {
   try {
     const urlObj = new URL(url);
-    return urlObj.searchParams.get(param) === value;
+    return urlObj.pathname.includes('/sch/');
   } catch {
     return false;
   }
 }
 
-// Add or remove a filter parameter from the URL
-function toggleFilterInUrl(url, param, value, enable) {
+// Build URL with filters applied based on stored state
+function applyFiltersToUrl(url, filterStates) {
   try {
     const urlObj = new URL(url);
 
-    if (enable) {
-      urlObj.searchParams.set(param, value);
-    } else {
-      urlObj.searchParams.delete(param);
+    for (const filter of FILTERS) {
+      const isEnabled = filterStates[filter.storageKey] === true;
+      if (isEnabled) {
+        urlObj.searchParams.set(filter.param, filter.value);
+      } else {
+        urlObj.searchParams.delete(filter.param);
+      }
     }
 
     return urlObj.toString();
@@ -45,19 +48,16 @@ function toggleFilterInUrl(url, param, value, enable) {
   }
 }
 
-// Remove all filter parameters from the URL
-function clearAllFilters(url) {
-  try {
-    const urlObj = new URL(url);
+// Load filter states from storage
+async function loadFilterStates() {
+  const keys = FILTERS.map(f => f.storageKey);
+  const result = await chrome.storage.sync.get(keys);
+  return result;
+}
 
-    for (const filter of FILTERS) {
-      urlObj.searchParams.delete(filter.param);
-    }
-
-    return urlObj.toString();
-  } catch {
-    return url;
-  }
+// Save a single filter state to storage
+async function saveFilterState(storageKey, enabled) {
+  await chrome.storage.sync.set({ [storageKey]: enabled });
 }
 
 // Update the page URL and reload
@@ -72,7 +72,7 @@ async function updatePageUrl(newUrl) {
   }
 }
 
-// Initialize the popup state based on current URL
+// Initialize the popup state based on stored settings
 async function initializePopup() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -93,11 +93,14 @@ async function initializePopup() {
     // Show filters and hide message
     showFilters();
 
-    // Set toggle states based on current URL
+    // Load persisted filter states from storage
+    const filterStates = await loadFilterStates();
+
+    // Set toggle states based on stored settings (not URL)
     for (const filter of FILTERS) {
       const checkbox = document.getElementById(filter.id);
       if (checkbox) {
-        checkbox.checked = isFilterActive(currentUrl, filter.param, filter.value);
+        checkbox.checked = filterStates[filter.storageKey] === true;
       }
     }
 
@@ -112,14 +115,19 @@ async function initializePopup() {
           // Add loading state
           row.classList.add('loading');
 
-          // Get fresh URL (in case it changed)
+          // Save to persistent storage
+          await saveFilterState(filter.storageKey, isEnabled);
+
+          // Get fresh URL and filter states
           const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (currentTab && currentTab.url) {
-            const newUrl = toggleFilterInUrl(currentTab.url, filter.param, filter.value, isEnabled);
+          if (currentTab && currentTab.url && isSearchPage(currentTab.url)) {
+            // Load all current filter states and apply to URL
+            const allFilterStates = await loadFilterStates();
+            const newUrl = applyFiltersToUrl(currentTab.url, allFilterStates);
             await updatePageUrl(newUrl);
           }
 
-          // Remove loading state (popup will close anyway on navigation)
+          // Remove loading state
           row.classList.remove('loading');
         });
       }
@@ -129,9 +137,20 @@ async function initializePopup() {
     const clearButton = document.getElementById('clear-all');
     if (clearButton) {
       clearButton.addEventListener('click', async () => {
+        // Clear all stored filter states
+        for (const filter of FILTERS) {
+          await saveFilterState(filter.storageKey, false);
+          const checkbox = document.getElementById(filter.id);
+          if (checkbox) {
+            checkbox.checked = false;
+          }
+        }
+
+        // Update URL if on search page
         const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (currentTab && currentTab.url) {
-          const newUrl = clearAllFilters(currentTab.url);
+        if (currentTab && currentTab.url && isSearchPage(currentTab.url)) {
+          const allFilterStates = await loadFilterStates();
+          const newUrl = applyFiltersToUrl(currentTab.url, allFilterStates);
           await updatePageUrl(newUrl);
         }
       });
