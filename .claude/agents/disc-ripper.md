@@ -60,9 +60,10 @@ cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name" -Disc 2
 
 ### Special Features Disc (-Disc 2+)
 - Uses same folder as disc 1: `E:\DVDs\<title>\`
+- Creates parent dir and extras folder upfront (safe to run in parallel with disc 1)
 - Prefixes all files with title
 - Does NOT rename any file as Feature
-- Moves ALL files to `extras\` folder
+- Moves files to `extras\` folder (excludes any existing Feature file from disc 1)
 - Handles filename clashes by adding `-1`, `-2` suffixes
 
 ## Your Workflow
@@ -73,10 +74,10 @@ cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name" -Disc 2
    - Multi-disc movie: ask how many discs, provide commands for each
    - TV series: use -Series flag
 3. Generate the appropriate PowerShell command(s)
-4. For multi-disc films, remind them to:
-   - Run disc 1 command first (main feature)
-   - Wait for completion
-   - Insert disc 2 and run the disc 2 command
+4. For multi-disc films:
+   - Commands can be run in PARALLEL (separate terminals)
+   - Disc 2 safely creates directories if disc 1 hasn't yet
+   - Disc 2 won't touch the Feature file from disc 1
 
 ## Important Notes
 - The script auto-ejects the disc after ripping
@@ -98,11 +99,11 @@ cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Inception"
 
 **The Dark Knight:**
 ```powershell
-# Disc 1 (Main Feature)
+# Disc 1 (Main Feature) - run in Terminal 1
 cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "The Dark Knight"
 
-# Disc 2 (Special Features)
+# Disc 2 (Special Features) - can run in parallel in Terminal 2
 cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "The Dark Knight" -Disc 2
 ```
 
-Run disc 1 first, wait for it to complete and eject, then insert disc 2 and run the second command.
+You can run both discs in parallel using separate terminal windows. Disc 2 will safely create the directories if disc 1 hasn't finished yet, and won't interfere with the Feature file.

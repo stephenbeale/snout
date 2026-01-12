@@ -39,6 +39,17 @@ $handbrakePath = "C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe"
 
 $contentType = if ($Series) { "TV Series" } else { "Movie" }
 $isMainFeatureDisc = (-not $Series) -and ($Disc -eq 1)
+$extrasDir = Join-Path $finalOutputDir "extras"
+
+# For disc 2+, ensure parent dir and extras folder exist upfront (disc 1 may still be running)
+if (-not $isMainFeatureDisc -and -not $Series) {
+    if (!(Test-Path $finalOutputDir)) {
+        New-Item -ItemType Directory -Path $finalOutputDir -Force | Out-Null
+    }
+    if (!(Test-Path $extrasDir)) {
+        New-Item -ItemType Directory -Path $extrasDir -Force | Out-Null
+    }
+}
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "DVD/Blu-ray Ripping & Encoding Script" -ForegroundColor Cyan
@@ -204,9 +215,8 @@ if ($isMainFeatureDisc) {
         Write-Host "No non-feature videos found" -ForegroundColor Gray
     }
 } elseif (-not $Series) {
-    # Disc 2+: move ALL videos to extras folder with clash handling
+    # Disc 2+: move videos to extras folder (exclude Feature file from disc 1)
     Write-Host "`nMoving special features to extras folder..." -ForegroundColor Yellow
-    $extrasDir = Join-Path $finalOutputDir "extras"
 
     if (!(Test-Path $extrasDir)) {
         Write-Host "Creating extras directory..." -ForegroundColor Yellow
@@ -216,7 +226,8 @@ if ($isMainFeatureDisc) {
         Write-Host "Extras directory already exists" -ForegroundColor Gray
     }
 
-    $videoFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' }
+    # Exclude Feature file (may have been created by disc 1)
+    $videoFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*-Feature.*" }
     if ($videoFiles) {
         Write-Host "Videos to move: $($videoFiles.Count)" -ForegroundColor White
         foreach ($video in $videoFiles) {
