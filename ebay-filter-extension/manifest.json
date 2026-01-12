@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "eBay UK Price Research Filters",
+  "version": "1.0.0",
+  "description": "Quick toggle filters for eBay UK price research - Sold Items, Condition, UK Only, Buy It Now",
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.ebay.co.uk/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "eBay UK Filters"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

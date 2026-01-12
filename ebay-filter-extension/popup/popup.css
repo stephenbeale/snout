@@ -1,0 +1,191 @@
+/* eBay UK Price Research Filters - Popup Styles */
+
+:root {
+  --ebay-blue: #0654ba;
+  --ebay-blue-dark: #054494;
+  --ebay-red: #e53238;
+  --ebay-yellow: #f5af02;
+  --ebay-green: #86b817;
+  --bg-color: #ffffff;
+  --text-color: #191919;
+  --text-subdued: #707070;
+  --border-color: #e5e5e5;
+  --toggle-off: #ccc;
+  --toggle-on: var(--ebay-blue);
+  --row-hover: #f7f7f7;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  min-width: 280px;
+}
+
+.container {
+  padding: 16px;
+}
+
+h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--ebay-blue);
+  border-bottom: 2px solid var(--ebay-blue);
+  padding-bottom: 8px;
+}
+
+.message {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-subdued);
+}
+
+.message p {
+  margin-bottom: 8px;
+}
+
+.message .subdued {
+  font-size: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.filter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.filter-row:hover {
+  background-color: var(--row-hover);
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.label-text {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.label-param {
+  font-size: 11px;
+  color: var(--text-subdued);
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--toggle-off);
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .slider {
+  background-color: var(--toggle-on);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 0 2px rgba(6, 84, 186, 0.3);
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Footer and Clear Button */
+.footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-clear {
+  width: 100%;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-subdued);
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-clear:hover {
+  color: var(--ebay-red);
+  border-color: var(--ebay-red);
+  background-color: rgba(229, 50, 56, 0.05);
+}
+
+.btn-clear:active {
+  transform: scale(0.98);
+}
+
+/* Loading state for toggles */
+.filter-row.loading .slider {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.filter-row.loading input {
+  pointer-events: none;
+}
