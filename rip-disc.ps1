@@ -9,6 +9,27 @@ param(
     [int]$Disc = 1
 )
 
+# ========== HELPER FUNCTIONS ==========
+function Get-UniqueFilePath {
+    param([string]$DestDir, [string]$FileName)
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    $extension = [System.IO.Path]::GetExtension($FileName)
+    $targetPath = Join-Path $DestDir $FileName
+
+    if (!(Test-Path $targetPath)) {
+        return $targetPath
+    }
+
+    $counter = 1
+    do {
+        $newName = "$baseName-$counter$extension"
+        $targetPath = Join-Path $DestDir $newName
+        $counter++
+    } while (Test-Path $targetPath)
+
+    return $targetPath
+}
+
 # ========== CONFIGURATION ==========
 $driveLetter = "D:"  # Your DVD/Blu-ray drive
 $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
@@ -159,8 +180,9 @@ if ($imageFiles) {
     Write-Host "No image files found" -ForegroundColor Gray
 }
 
-# Movie disc 1 only: make extras dir and move video files if non-feature videos exist
+# Handle extras folder based on disc type
 if ($isMainFeatureDisc) {
+    # Disc 1: move non-feature videos to extras
     Write-Host "`nChecking for non-feature videos..." -ForegroundColor Yellow
     $nonFeatureVideos = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*Feature*" }
     if ($nonFeatureVideos) {
@@ -181,9 +203,38 @@ if ($isMainFeatureDisc) {
     } else {
         Write-Host "No non-feature videos found" -ForegroundColor Gray
     }
+} elseif (-not $Series) {
+    # Disc 2+: move ALL videos to extras folder with clash handling
+    Write-Host "`nMoving special features to extras folder..." -ForegroundColor Yellow
+    $extrasDir = Join-Path $finalOutputDir "extras"
+
+    if (!(Test-Path $extrasDir)) {
+        Write-Host "Creating extras directory..." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $extrasDir | Out-Null
+        Write-Host "Extras directory created" -ForegroundColor Green
+    } else {
+        Write-Host "Extras directory already exists" -ForegroundColor Gray
+    }
+
+    $videoFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' }
+    if ($videoFiles) {
+        Write-Host "Videos to move: $($videoFiles.Count)" -ForegroundColor White
+        foreach ($video in $videoFiles) {
+            $uniquePath = Get-UniqueFilePath -DestDir $extrasDir -FileName $video.Name
+            $newName = [System.IO.Path]::GetFileName($uniquePath)
+            if ($newName -ne $video.Name) {
+                Write-Host "  - $($video.Name) -> $newName (renamed to avoid clash)" -ForegroundColor Yellow
+            } else {
+                Write-Host "  - $($video.Name)" -ForegroundColor Gray
+            }
+            Move-Item -Path $video.FullName -Destination $uniquePath
+        }
+        Write-Host "Files moved to extras" -ForegroundColor Green
+    } else {
+        Write-Host "No video files to move" -ForegroundColor Gray
+    }
 } else {
-    $skipReason = if ($Series) { "Series mode" } else { "Special Features disc" }
-    Write-Host "`nSkipping extras folder ($skipReason)" -ForegroundColor Gray
+    Write-Host "`nSkipping extras folder (Series mode)" -ForegroundColor Gray
 }
 
 # ========== STEP 4: OPEN DIRECTORIES ==========
