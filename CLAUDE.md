@@ -284,3 +284,37 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - Documentation updated in 43b8f3d: "Update session notes: Test suite updates and notification testing"
 - Only uncommitted file is `.claude/settings.local.json` (local configuration, should not be committed)
 - The `rip-disc.ps1` file is untracked and unrelated to this project
+
+### 2026-01-12 - DVD/Blu-ray Ripping Script and Multi-Disc Support
+
+**Work Completed:**
+- Created `rip-disc.ps1` PowerShell script for automated DVD/Blu-ray ripping:
+  - Uses MakeMKV for ripping, HandBrake for encoding (Fast 1080p30 preset)
+  - Auto-ejects disc after ripping
+  - Prefixes files with title, renames largest as Feature
+  - Moves extras to subfolder, deletes image files
+- Added multi-disc film support with `-Disc` parameter:
+  - Disc 1: Normal movie behavior (Feature rename, extras handling)
+  - Disc 2+: Files go to extras folder, excludes Feature file
+  - Safe for parallel execution in separate terminals
+- Created `disc-ripper` agent in `.claude/agents/`:
+  - Generates correct PowerShell commands for movies, TV series, multi-disc films
+  - Documents all script parameters and behaviors
+- Fixed parallel disc ripping issues:
+  - Disc 2+ creates parent dir and extras folder upfront
+  - Excludes Feature file when moving to extras (prevents disc 1's Feature being moved)
+- Simplified directory opening: now only opens film directory, not parent DVDs folder
+- Removed ralph-loop plugin from Claude Code settings
+
+**Commits:**
+- `46821f0`: feat: add DVD/Blu-ray ripping script with multi-disc support
+- `6749450`: feat: add multi-disc support and disc-ripper agent
+- `0e146d9`: fix: parallel disc ripping and Feature file protection
+
+**Technical Notes:**
+- Script location: `C:\Users\sjbeale\source\claude\rip-disc.ps1`
+- MakeMKV path: `C:\Program Files (x86)\MakeMKV\makemkvcon64.exe`
+- HandBrake CLI path: `C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe`
+- Output locations: Movies → `E:\DVDs\<title>\`, Series → `E:\Series\<title>\`
+- Minimum title length: 120 seconds (filters menus/short clips)
+- `Get-UniqueFilePath` helper handles filename clashes with `-1`, `-2` suffixes

@@ -248,20 +248,10 @@ if ($isMainFeatureDisc) {
     Write-Host "`nSkipping extras folder (Series mode)" -ForegroundColor Gray
 }
 
-# ========== STEP 4: OPEN DIRECTORIES ==========
-Write-Host "`n[STEP 4/4] Opening directories..." -ForegroundColor Green
-Write-Host "Opening current directory: $finalOutputDir" -ForegroundColor Yellow
-start .
-
-cd..
-$parentDir = if ($Series) { "E:\Series" } else { "E:\DVDs" }
-Write-Host "Opening parent directory: $parentDir" -ForegroundColor Yellow
-start .
-
-Write-Host "Opening: C:\Video" -ForegroundColor Yellow
-start C:/Video
-
-cd $parentDir
+# ========== STEP 4: OPEN DIRECTORY ==========
+Write-Host "`n[STEP 4/4] Opening film directory..." -ForegroundColor Green
+Write-Host "Opening: $finalOutputDir" -ForegroundColor Yellow
+start $finalOutputDir
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "COMPLETE!" -ForegroundColor Green
