@@ -6,7 +6,10 @@ param(
     [switch]$Series,
 
     [Parameter()]
-    [int]$Disc = 1
+    [int]$Disc = 1,
+
+    [Parameter()]
+    [string]$Drive = "D:"
 )
 
 # ========== HELPER FUNCTIONS ==========
@@ -31,7 +34,8 @@ function Get-UniqueFilePath {
 }
 
 # ========== CONFIGURATION ==========
-$driveLetter = "D:"  # Your DVD/Blu-ray drive
+# Normalize drive letter format (ensure it ends with colon)
+$driveLetter = if ($Drive -match ':$') { $Drive } else { "${Drive}:" }
 $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
 $finalOutputDir = if ($Series) { "E:\Series\$title" } else { "E:\DVDs\$title" }
 $makemkvconPath = "C:\Program Files (x86)\MakeMKV\makemkvcon64.exe"
@@ -56,6 +60,7 @@ Write-Host "DVD/Blu-ray Ripping & Encoding Script" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Title: $title" -ForegroundColor White
 Write-Host "Type: $contentType" -ForegroundColor White
+Write-Host "Drive: $driveLetter" -ForegroundColor White
 if (-not $Series) { Write-Host "Disc: $Disc$(if ($Disc -gt 1) { ' (Special Features)' })" -ForegroundColor White }
 Write-Host "MakeMKV Output: $makemkvOutputDir" -ForegroundColor White
 Write-Host "Final Output: $finalOutputDir" -ForegroundColor White
