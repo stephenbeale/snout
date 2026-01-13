@@ -9,7 +9,10 @@ param(
     [int]$Disc = 1,
 
     [Parameter()]
-    [string]$Drive = "D:"
+    [string]$Drive = "D:",
+
+    [Parameter()]
+    [int]$DiscIndex = -1
 )
 
 # ========== HELPER FUNCTIONS ==========
@@ -31,6 +34,23 @@ function Get-UniqueFilePath {
     } while (Test-Path $targetPath)
 
     return $targetPath
+}
+
+function Get-DiscIndex {
+    param([string]$DriveLetter, [string]$MakeMkvPath)
+    # Query MakeMKV for available drives and find the index matching the drive letter
+    $output = & $MakeMkvPath -r info disc:9999 2>&1
+    foreach ($line in $output) {
+        # Match drive lines - format: DRV:0,2,999,1,"BD-RE HL-DT-ST BD-RE WH16NS60 1.02","D:",""
+        if ($line -match '^DRV:(\d+),.*"([A-Za-z]:)"') {
+            $index = $matches[1]
+            $drive = $matches[2].ToUpper()
+            if ($drive -eq $DriveLetter.ToUpper()) {
+                return [int]$index
+            }
+        }
+    }
+    return $null
 }
 
 # ========== CONFIGURATION ==========
@@ -68,6 +88,25 @@ Write-Host "========================================`n" -ForegroundColor Cyan
 
 # ========== STEP 1: RIP WITH MAKEMKV ==========
 Write-Host "[STEP 1/4] Starting MakeMKV rip..." -ForegroundColor Green
+
+# Find the disc index - use provided DiscIndex or look up by drive letter
+if ($DiscIndex -ge 0) {
+    $discIdx = $DiscIndex
+    Write-Host "Using provided disc index: $discIdx" -ForegroundColor Green
+    if ($driveLetter -eq "D:") {
+        Write-Host "NOTE: Will eject D: (default). Specify -Drive G to eject G: instead." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Looking up disc index for drive $driveLetter..." -ForegroundColor Yellow
+    $discIdx = Get-DiscIndex -DriveLetter $driveLetter -MakeMkvPath $makemkvconPath
+    if ($null -eq $discIdx) {
+        Write-Host "ERROR: Could not find disc in drive $driveLetter" -ForegroundColor Red
+        Write-Host "Make sure a disc is inserted in the drive." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Found disc at index: $discIdx" -ForegroundColor Green
+}
+
 Write-Host "Creating directory: $makemkvOutputDir" -ForegroundColor Yellow
 if (!(Test-Path $makemkvOutputDir)) {
     New-Item -ItemType Directory -Path $makemkvOutputDir | Out-Null
@@ -77,8 +116,8 @@ if (!(Test-Path $makemkvOutputDir)) {
 }
 
 Write-Host "`nExecuting MakeMKV command..." -ForegroundColor Yellow
-Write-Host "Command: makemkvcon mkv disc:0 all `"$makemkvOutputDir`" --minlength=120" -ForegroundColor Gray
-& $makemkvconPath mkv disc:0 all $makemkvOutputDir --minlength=120
+Write-Host "Command: makemkvcon mkv disc:$discIdx all `"$makemkvOutputDir`" --minlength=120" -ForegroundColor Gray
+& $makemkvconPath mkv "disc:$discIdx" all $makemkvOutputDir --minlength=120
 Write-Host "`nMakeMKV rip complete!" -ForegroundColor Green
 
 $rippedFiles = Get-ChildItem -Path $makemkvOutputDir -Filter "*.mkv"
