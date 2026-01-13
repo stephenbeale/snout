@@ -14,6 +14,19 @@ The script is located at: `C:\Users\sjbeale\source\claude\rip-disc.ps1`
 - `-title` (required): The name of the movie or TV series
 - `-Series` (switch): Use for TV series - skips Feature rename, outputs to E:\Series\
 - `-Disc` (int, default 1): Disc number for multi-disc films
+- `-Drive` (string, default "D:"): Drive letter containing the disc (for ejection)
+- `-DiscIndex` (int, default -1): MakeMKV disc index to bypass slow drive lookup
+
+### Drive Mappings
+The user's system has two optical drives:
+- **D:** = MakeMKV disc index 0
+- **G:** = MakeMKV disc index 1
+
+### Using -DiscIndex for Faster Ripping
+By default, the script queries MakeMKV for available drives which takes ~1 minute. To skip this:
+- Use `-DiscIndex 0` for drive D:
+- Use `-DiscIndex 1` for drive G:
+- **Important:** When using `-DiscIndex`, also specify `-Drive` for correct disc ejection
 
 ## Output Locations
 - Movies: `E:\DVDs\<title>\`
@@ -40,6 +53,15 @@ cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name"
 ### Multi-Disc Film (Disc 2+ - Special Features)
 ```powershell
 cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name" -Disc 2
+```
+
+### Fast Ripping with -DiscIndex (Skip Drive Lookup)
+```powershell
+# Drive D: (index 0)
+cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name" -DiscIndex 0 -Drive D
+
+# Drive G: (index 1)
+cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Movie Name" -DiscIndex 1 -Drive G
 ```
 
 ## Behavior by Mode
@@ -107,3 +129,10 @@ cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "The Dark Knight" -Di
 ```
 
 You can run both discs in parallel using separate terminal windows. Disc 2 will safely create the directories if disc 1 hasn't finished yet, and won't interfere with the Feature file.
+
+**User:** "Rip Avatar from drive G, and make it fast"
+**Response:** Here's the fast rip command using the disc index to skip the drive lookup:
+```powershell
+cd "C:\Users\sjbeale\source\claude"; .\rip-disc.ps1 -title "Avatar" -DiscIndex 1 -Drive G
+```
+This bypasses the ~1 minute drive query by directly specifying the disc index (G: = index 1).
