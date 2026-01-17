@@ -6,6 +6,12 @@ param(
     [switch]$Series,
 
     [Parameter()]
+    [int]$Season = 1,
+
+    [Parameter()]
+    [int]$StartEpisode = 1,
+
+    [Parameter()]
     [int]$Disc = 1,
 
     [Parameter()]
@@ -39,6 +45,7 @@ function Get-UniqueFilePath {
 
 # ========== DRIVE CONFIRMATION ==========
 # Show which drive will be used and confirm before proceeding
+$driveLetter = if ($Drive -match ':$') { $Drive } else { "${Drive}:" }
 $driveDescription = if ($DriveIndex -ge 0) {
     $hint = switch ($DriveIndex) {
         0 { "D: internal" }
@@ -51,15 +58,32 @@ $driveDescription = if ($DriveIndex -ge 0) {
 }
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Ready to rip: $title" -ForegroundColor White
+if ($Series) {
+    $seasonTagPreview = "S{0:D2}" -f $Season
+    Write-Host "Type: TV Series - Season $Season ($seasonTagPreview), Disc $Disc" -ForegroundColor White
+    Write-Host "Starting at: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
+} else {
+    $discType = if ($Disc -eq 1) { "Main Feature" } else { "Special Features" }
+    Write-Host "Type: Movie - $discType (Disc $Disc)" -ForegroundColor White
+}
 Write-Host "Using: $driveDescription" -ForegroundColor Yellow
 Write-Host "========================================" -ForegroundColor Cyan
 $response = Read-Host "Press Enter to continue, or Ctrl+C to abort"
 
 # ========== CONFIGURATION ==========
-# Normalize drive letter format (ensure it ends with colon)
-$driveLetter = if ($Drive -match ':$') { $Drive } else { "${Drive}:" }
 $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
-$finalOutputDir = if ($Series) { "E:\Series\$title" } else { "E:\DVDs\$title" }
+
+# Series: organize into Season subfolders with proper naming
+# Movies: organize into title folder with optional extras
+if ($Series) {
+    $seasonTag = "S{0:D2}" -f $Season
+    $seasonFolder = "Season $Season"
+    $seriesBaseDir = "E:\Series\$title"
+    $finalOutputDir = Join-Path $seriesBaseDir $seasonFolder
+} else {
+    $finalOutputDir = "E:\DVDs\$title"
+}
+
 $makemkvconPath = "C:\Program Files (x86)\MakeMKV\makemkvcon64.exe"
 $handbrakePath = "C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe"
 
@@ -107,7 +131,13 @@ if ($DriveIndex -ge 0) {
 } else {
     Write-Host "Drive: $driveLetter" -ForegroundColor White
 }
-if (-not $Series) { Write-Host "Disc: $Disc$(if ($Disc -gt 1) { ' (Special Features)' })" -ForegroundColor White }
+if ($Series) {
+    Write-Host "Season: $Season ($seasonTag)" -ForegroundColor White
+    Write-Host "Disc: $Disc" -ForegroundColor White
+    Write-Host "Starting Episode: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
+} else {
+    Write-Host "Disc: $Disc$(if ($Disc -gt 1) { ' (Special Features)' })" -ForegroundColor White
+}
 Write-Host "MakeMKV Output: $makemkvOutputDir" -ForegroundColor White
 Write-Host "Final Output: $finalOutputDir" -ForegroundColor White
 Write-Host "========================================`n" -ForegroundColor Cyan
@@ -231,40 +261,7 @@ cd $finalOutputDir
 
 Write-Host "Current directory: $finalOutputDir" -ForegroundColor Yellow
 
-# prefix files with parent dir name (only if not already prefixed)
-Write-Host "`nPrefixing files with directory name..." -ForegroundColor Yellow
-$filesToPrefix = Get-ChildItem -File | Where-Object { $_.Name -notlike ($_.Directory.Name + "-*") }
-if ($filesToPrefix) {
-    Write-Host "Files to prefix: $($filesToPrefix.Count)" -ForegroundColor White
-    $filesToPrefix | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
-    $filesToPrefix | Rename-Item -NewName { $_.Directory.Name + "-" + $_.Name }
-    Write-Host "Prefixing complete" -ForegroundColor Green
-} else {
-    Write-Host "No files need prefixing" -ForegroundColor Gray
-}
-
-# Movie disc 1 only: add 'Feature' suffix to largest file
-if ($isMainFeatureDisc) {
-    Write-Host "`nChecking for Feature file..." -ForegroundColor Yellow
-    $featureExists = Get-ChildItem -File | Where-Object { $_.Name -like "*-Feature.*" }
-    if (!$featureExists) {
-        $largestFile = Get-ChildItem -File | Sort-Object Length -Descending | Select-Object -First 1
-        if ($largestFile) {
-            Write-Host "Largest file: $($largestFile.Name) ($([math]::Round($largestFile.Length/1GB, 2)) GB)" -ForegroundColor White
-            $newName = $largestFile.Directory.Name + "-Feature" + $largestFile.Extension
-            Write-Host "Renaming to: $newName" -ForegroundColor Yellow
-            Rename-Item -Path $largestFile.FullName -NewName $newName
-            Write-Host "Feature file renamed successfully" -ForegroundColor Green
-        }
-    } else {
-        Write-Host "Feature file already exists: $($featureExists.Name)" -ForegroundColor Gray
-    }
-} else {
-    $skipReason = if ($Series) { "Series mode" } else { "Special Features disc" }
-    Write-Host "`nSkipping Feature rename ($skipReason)" -ForegroundColor Gray
-}
-
-# delete image files (only if they exist)
+# delete image files first (only if they exist)
 Write-Host "`nDeleting image files..." -ForegroundColor Yellow
 $imageFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(jpg|jpeg|png|gif|bmp)$' }
 if ($imageFiles) {
@@ -276,61 +273,126 @@ if ($imageFiles) {
     Write-Host "No image files found" -ForegroundColor Gray
 }
 
-# Handle extras folder based on disc type
-if ($isMainFeatureDisc) {
-    # Disc 1: move non-feature videos to extras
-    Write-Host "`nChecking for non-feature videos..." -ForegroundColor Yellow
-    $nonFeatureVideos = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*Feature*" }
-    if ($nonFeatureVideos) {
-        Write-Host "Non-feature videos found: $($nonFeatureVideos.Count)" -ForegroundColor White
-        $nonFeatureVideos | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
+if ($Series) {
+    # ========== SERIES MODE: Episode naming ==========
+    Write-Host "`nRenaming episodes with $seasonTag format..." -ForegroundColor Yellow
 
-        if (!(Test-Path "extras")) {
+    # Get all MP4 files sorted by name (MakeMKV typically names them title00.mkv, title01.mkv, etc.)
+    $episodeFiles = Get-ChildItem -File -Filter "*.mp4" | Sort-Object Name
+
+    if ($episodeFiles) {
+        $currentEpisode = $StartEpisode
+        Write-Host "Found $($episodeFiles.Count) episode(s) to rename" -ForegroundColor White
+        Write-Host "Starting from episode E$("{0:D2}" -f $currentEpisode)" -ForegroundColor White
+
+        foreach ($episode in $episodeFiles) {
+            $episodeTag = "E{0:D2}" -f $currentEpisode
+            $newName = "$title - $seasonTag$episodeTag$($episode.Extension)"
+
+            Write-Host "  $($episode.Name) -> $newName" -ForegroundColor Yellow
+            Rename-Item -Path $episode.FullName -NewName $newName
+            $currentEpisode++
+        }
+
+        $lastEpisode = $currentEpisode - 1
+        Write-Host "Episode renaming complete ($seasonTag`E$("{0:D2}" -f $StartEpisode) to $seasonTag`E$("{0:D2}" -f $lastEpisode))" -ForegroundColor Green
+
+        # Calculate and display next episode number for user convenience
+        Write-Host "`n--- NEXT DISC INFO ---" -ForegroundColor Cyan
+        Write-Host "For the next disc of this season, use:" -ForegroundColor White
+        Write-Host "  -StartEpisode $currentEpisode" -ForegroundColor Yellow
+        Write-Host "----------------------" -ForegroundColor Cyan
+    } else {
+        Write-Host "No MP4 files found to rename" -ForegroundColor Gray
+    }
+} else {
+    # ========== MOVIE MODE: Original behavior ==========
+    # prefix files with parent dir name (only if not already prefixed)
+    Write-Host "`nPrefixing files with directory name..." -ForegroundColor Yellow
+    $filesToPrefix = Get-ChildItem -File | Where-Object { $_.Name -notlike ($_.Directory.Name + "-*") }
+    if ($filesToPrefix) {
+        Write-Host "Files to prefix: $($filesToPrefix.Count)" -ForegroundColor White
+        $filesToPrefix | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
+        $filesToPrefix | Rename-Item -NewName { $_.Directory.Name + "-" + $_.Name }
+        Write-Host "Prefixing complete" -ForegroundColor Green
+    } else {
+        Write-Host "No files need prefixing" -ForegroundColor Gray
+    }
+
+    # Movie disc 1 only: add 'Feature' suffix to largest file
+    if ($isMainFeatureDisc) {
+        Write-Host "`nChecking for Feature file..." -ForegroundColor Yellow
+        $featureExists = Get-ChildItem -File | Where-Object { $_.Name -like "*-Feature.*" }
+        if (!$featureExists) {
+            $largestFile = Get-ChildItem -File | Sort-Object Length -Descending | Select-Object -First 1
+            if ($largestFile) {
+                Write-Host "Largest file: $($largestFile.Name) ($([math]::Round($largestFile.Length/1GB, 2)) GB)" -ForegroundColor White
+                $newName = $largestFile.Directory.Name + "-Feature" + $largestFile.Extension
+                Write-Host "Renaming to: $newName" -ForegroundColor Yellow
+                Rename-Item -Path $largestFile.FullName -NewName $newName
+                Write-Host "Feature file renamed successfully" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "Feature file already exists: $($featureExists.Name)" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "`nSkipping Feature rename (Special Features disc)" -ForegroundColor Gray
+    }
+
+    # Handle extras folder based on disc type
+    if ($isMainFeatureDisc) {
+        # Disc 1: move non-feature videos to extras
+        Write-Host "`nChecking for non-feature videos..." -ForegroundColor Yellow
+        $nonFeatureVideos = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*Feature*" }
+        if ($nonFeatureVideos) {
+            Write-Host "Non-feature videos found: $($nonFeatureVideos.Count)" -ForegroundColor White
+            $nonFeatureVideos | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
+
+            if (!(Test-Path "extras")) {
+                Write-Host "Creating extras directory..." -ForegroundColor Yellow
+                md extras | Out-Null
+                Write-Host "Extras directory created" -ForegroundColor Green
+            } else {
+                Write-Host "Extras directory already exists" -ForegroundColor Gray
+            }
+
+            Write-Host "Moving files to extras..." -ForegroundColor Yellow
+            $nonFeatureVideos | Move-Item -Destination extras -ErrorAction SilentlyContinue
+            Write-Host "Files moved to extras" -ForegroundColor Green
+        } else {
+            Write-Host "No non-feature videos found" -ForegroundColor Gray
+        }
+    } else {
+        # Disc 2+: move videos to extras folder (exclude Feature file from disc 1)
+        Write-Host "`nMoving special features to extras folder..." -ForegroundColor Yellow
+
+        if (!(Test-Path $extrasDir)) {
             Write-Host "Creating extras directory..." -ForegroundColor Yellow
-            md extras | Out-Null
+            New-Item -ItemType Directory -Path $extrasDir | Out-Null
             Write-Host "Extras directory created" -ForegroundColor Green
         } else {
             Write-Host "Extras directory already exists" -ForegroundColor Gray
         }
 
-        Write-Host "Moving files to extras..." -ForegroundColor Yellow
-        $nonFeatureVideos | Move-Item -Destination extras -ErrorAction SilentlyContinue
-        Write-Host "Files moved to extras" -ForegroundColor Green
-    } else {
-        Write-Host "No non-feature videos found" -ForegroundColor Gray
-    }
-} elseif (-not $Series) {
-    # Disc 2+: move videos to extras folder (exclude Feature file from disc 1)
-    Write-Host "`nMoving special features to extras folder..." -ForegroundColor Yellow
-
-    if (!(Test-Path $extrasDir)) {
-        Write-Host "Creating extras directory..." -ForegroundColor Yellow
-        New-Item -ItemType Directory -Path $extrasDir | Out-Null
-        Write-Host "Extras directory created" -ForegroundColor Green
-    } else {
-        Write-Host "Extras directory already exists" -ForegroundColor Gray
-    }
-
-    # Exclude Feature file (may have been created by disc 1)
-    $videoFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*-Feature.*" }
-    if ($videoFiles) {
-        Write-Host "Videos to move: $($videoFiles.Count)" -ForegroundColor White
-        foreach ($video in $videoFiles) {
-            $uniquePath = Get-UniqueFilePath -DestDir $extrasDir -FileName $video.Name
-            $newName = [System.IO.Path]::GetFileName($uniquePath)
-            if ($newName -ne $video.Name) {
-                Write-Host "  - $($video.Name) -> $newName (renamed to avoid clash)" -ForegroundColor Yellow
-            } else {
-                Write-Host "  - $($video.Name)" -ForegroundColor Gray
+        # Exclude Feature file (may have been created by disc 1)
+        $videoFiles = Get-ChildItem -File | Where-Object { $_.Extension -match '\.(mp4|avi|mkv|mov|wmv)$' -and $_.Name -notlike "*-Feature.*" }
+        if ($videoFiles) {
+            Write-Host "Videos to move: $($videoFiles.Count)" -ForegroundColor White
+            foreach ($video in $videoFiles) {
+                $uniquePath = Get-UniqueFilePath -DestDir $extrasDir -FileName $video.Name
+                $newName = [System.IO.Path]::GetFileName($uniquePath)
+                if ($newName -ne $video.Name) {
+                    Write-Host "  - $($video.Name) -> $newName (renamed to avoid clash)" -ForegroundColor Yellow
+                } else {
+                    Write-Host "  - $($video.Name)" -ForegroundColor Gray
+                }
+                Move-Item -Path $video.FullName -Destination $uniquePath
             }
-            Move-Item -Path $video.FullName -Destination $uniquePath
+            Write-Host "Files moved to extras" -ForegroundColor Green
+        } else {
+            Write-Host "No video files to move" -ForegroundColor Gray
         }
-        Write-Host "Files moved to extras" -ForegroundColor Green
-    } else {
-        Write-Host "No video files to move" -ForegroundColor Gray
     }
-} else {
-    Write-Host "`nSkipping extras folder (Series mode)" -ForegroundColor Gray
 }
 $lastSuccessfulStep = "STEP 3/4: File organization"
 
@@ -344,9 +406,16 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "COMPLETE!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "All steps completed successfully" -ForegroundColor Green
-$discInfo = if (-not $Series -and $Disc -gt 1) { " (Disc $Disc)" } else { "" }
-Write-Host "$contentType processed: $title$discInfo" -ForegroundColor White
+
+if ($Series) {
+    Write-Host "$contentType processed: $title" -ForegroundColor White
+    Write-Host "Season: $Season (Disc $Disc)" -ForegroundColor White
+} else {
+    $discInfo = if ($Disc -gt 1) { " (Disc $Disc)" } else { "" }
+    Write-Host "$contentType processed: $title$discInfo" -ForegroundColor White
+}
 Write-Host "Final location: $finalOutputDir" -ForegroundColor White
+
 Write-Host "`nSummary:" -ForegroundColor Cyan
 $finalFiles = Get-ChildItem -Path $finalOutputDir -File -Recurse
 Write-Host "  Total files: $($finalFiles.Count)" -ForegroundColor White
