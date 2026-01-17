@@ -9,7 +9,10 @@ param(
     [int]$Disc = 1,
 
     [Parameter()]
-    [string]$Drive = "D:"
+    [string]$Drive = "D:",
+
+    [Parameter()]
+    [int]$DriveIndex = -1
 )
 
 # ========== HELPER FUNCTIONS ==========
@@ -33,6 +36,25 @@ function Get-UniqueFilePath {
     return $targetPath
 }
 
+
+# ========== DRIVE CONFIRMATION ==========
+# Show which drive will be used and confirm before proceeding
+$driveDescription = if ($DriveIndex -ge 0) {
+    $hint = switch ($DriveIndex) {
+        0 { "D: internal" }
+        1 { "G: ASUS external" }
+        default { "unknown drive" }
+    }
+    "Drive Index $DriveIndex ($hint)"
+} else {
+    "Drive $driveLetter"
+}
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "Ready to rip: $title" -ForegroundColor White
+Write-Host "Using: $driveDescription" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Cyan
+$response = Read-Host "Press Enter to continue, or Ctrl+C to abort"
+
 # ========== CONFIGURATION ==========
 # Normalize drive letter format (ensure it ends with colon)
 $driveLetter = if ($Drive -match ':$') { $Drive } else { "${Drive}:" }
@@ -40,6 +62,21 @@ $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
 $finalOutputDir = if ($Series) { "E:\Series\$title" } else { "E:\DVDs\$title" }
 $makemkvconPath = "C:\Program Files (x86)\MakeMKV\makemkvcon64.exe"
 $handbrakePath = "C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe"
+
+# Track progress for error reporting
+$lastSuccessfulStep = "None"
+
+function Stop-WithError {
+    param([string]$Step, [string]$Message)
+    Write-Host "`n========================================" -ForegroundColor Red
+    Write-Host "FAILED!" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "Error at: $Step" -ForegroundColor Red
+    Write-Host "Message: $Message" -ForegroundColor Red
+    Write-Host "Last successful step: $lastSuccessfulStep" -ForegroundColor Yellow
+    Write-Host "========================================`n" -ForegroundColor Red
+    exit 1
+}
 
 $contentType = if ($Series) { "TV Series" } else { "Movie" }
 $isMainFeatureDisc = (-not $Series) -and ($Disc -eq 1)
@@ -60,7 +97,16 @@ Write-Host "DVD/Blu-ray Ripping & Encoding Script" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Title: $title" -ForegroundColor White
 Write-Host "Type: $contentType" -ForegroundColor White
-Write-Host "Drive: $driveLetter" -ForegroundColor White
+if ($DriveIndex -ge 0) {
+    $driveHint = switch ($DriveIndex) {
+        0 { "D: internal" }
+        1 { "G: ASUS external" }
+        default { "unknown" }
+    }
+    Write-Host "Drive Index: $DriveIndex ($driveHint)" -ForegroundColor White
+} else {
+    Write-Host "Drive: $driveLetter" -ForegroundColor White
+}
 if (-not $Series) { Write-Host "Disc: $Disc$(if ($Disc -gt 1) { ' (Special Features)' })" -ForegroundColor White }
 Write-Host "MakeMKV Output: $makemkvOutputDir" -ForegroundColor White
 Write-Host "Final Output: $finalOutputDir" -ForegroundColor White
@@ -68,24 +114,52 @@ Write-Host "========================================`n" -ForegroundColor Cyan
 
 # ========== STEP 1: RIP WITH MAKEMKV ==========
 Write-Host "[STEP 1/4] Starting MakeMKV rip..." -ForegroundColor Green
+
+# Use disc: syntax with index if provided (completely bypasses drive enumeration)
+# Otherwise fall back to dev: syntax which still enumerates drives
+if ($DriveIndex -ge 0) {
+    $discSource = "disc:$DriveIndex"
+    Write-Host "Using drive index: $DriveIndex (bypasses drive enumeration)" -ForegroundColor Green
+} else {
+    $discSource = "dev:$driveLetter"
+    Write-Host "Using drive: $driveLetter (may enumerate other drives)" -ForegroundColor Yellow
+    Write-Host "Tip: Use -DriveIndex to bypass drive enumeration" -ForegroundColor Gray
+}
+
 Write-Host "Creating directory: $makemkvOutputDir" -ForegroundColor Yellow
-if (!(Test-Path $makemkvOutputDir)) {
+if (Test-Path $makemkvOutputDir) {
+    Write-Host "Directory exists - cleaning existing MKV files..." -ForegroundColor Yellow
+    $existingMkvs = Get-ChildItem -Path $makemkvOutputDir -Filter "*.mkv" -ErrorAction SilentlyContinue
+    if ($existingMkvs) {
+        $existingMkvs | Remove-Item -Force
+        Write-Host "Removed $($existingMkvs.Count) existing MKV file(s)" -ForegroundColor Yellow
+    }
+} else {
     New-Item -ItemType Directory -Path $makemkvOutputDir | Out-Null
     Write-Host "Directory created successfully" -ForegroundColor Green
-} else {
-    Write-Host "Directory already exists" -ForegroundColor Yellow
 }
 
 Write-Host "`nExecuting MakeMKV command..." -ForegroundColor Yellow
-Write-Host "Command: makemkvcon mkv disc:0 all `"$makemkvOutputDir`" --minlength=120" -ForegroundColor Gray
-& $makemkvconPath mkv disc:0 all $makemkvOutputDir --minlength=120
-Write-Host "`nMakeMKV rip complete!" -ForegroundColor Green
+Write-Host "Command: makemkvcon mkv $discSource all `"$makemkvOutputDir`" --minlength=120" -ForegroundColor Gray
+& $makemkvconPath mkv $discSource all $makemkvOutputDir --minlength=120
+$makemkvExitCode = $LASTEXITCODE
 
-$rippedFiles = Get-ChildItem -Path $makemkvOutputDir -Filter "*.mkv"
+# Check if MakeMKV succeeded
+if ($makemkvExitCode -ne 0) {
+    Stop-WithError -Step "STEP 1/4: MakeMKV rip" -Message "MakeMKV exited with code $makemkvExitCode"
+}
+
+$rippedFiles = Get-ChildItem -Path $makemkvOutputDir -Filter "*.mkv" -ErrorAction SilentlyContinue
+if ($null -eq $rippedFiles -or $rippedFiles.Count -eq 0) {
+    Stop-WithError -Step "STEP 1/4: MakeMKV rip" -Message "No MKV files were created. Check if disc is readable."
+}
+
+Write-Host "`nMakeMKV rip complete!" -ForegroundColor Green
 Write-Host "Files ripped: $($rippedFiles.Count)" -ForegroundColor White
 foreach ($file in $rippedFiles) {
     Write-Host "  - $($file.Name) ($([math]::Round($file.Length/1GB, 2)) GB)" -ForegroundColor Gray
 }
+$lastSuccessfulStep = "STEP 1/4: MakeMKV rip"
 
 # Eject disc
 Write-Host "`nEjecting disc from drive $driveLetter..." -ForegroundColor Yellow
@@ -123,15 +197,21 @@ foreach ($mkv in $mkvFiles) {
         --all-subtitles `
         --subtitle-burned=none `
         --verbose=1
+    $handbrakeExitCode = $LASTEXITCODE
+
+    if ($handbrakeExitCode -ne 0) {
+        Stop-WithError -Step "STEP 2/4: HandBrake encoding" -Message "HandBrake exited with code $handbrakeExitCode while encoding $($mkv.Name)"
+    }
 
     if (Test-Path $outputFile) {
         $encodedSize = (Get-Item $outputFile).Length
         Write-Host "`nEncoding complete: $($mkv.Name)" -ForegroundColor Green
         Write-Host "Output size: $([math]::Round($encodedSize/1GB, 2)) GB" -ForegroundColor White
     } else {
-        Write-Host "`nWARNING: Output file not created for $($mkv.Name)" -ForegroundColor Red
+        Stop-WithError -Step "STEP 2/4: HandBrake encoding" -Message "Output file not created for $($mkv.Name)"
     }
 }
+$lastSuccessfulStep = "STEP 2/4: HandBrake encoding"
 
 # Delete MakeMKV temporary directory after successful encode
 Write-Host "`nChecking for successful encodes..." -ForegroundColor Yellow
@@ -252,15 +332,18 @@ if ($isMainFeatureDisc) {
 } else {
     Write-Host "`nSkipping extras folder (Series mode)" -ForegroundColor Gray
 }
+$lastSuccessfulStep = "STEP 3/4: File organization"
 
 # ========== STEP 4: OPEN DIRECTORY ==========
 Write-Host "`n[STEP 4/4] Opening film directory..." -ForegroundColor Green
 Write-Host "Opening: $finalOutputDir" -ForegroundColor Yellow
 start $finalOutputDir
+$lastSuccessfulStep = "STEP 4/4: Open directory"
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "COMPLETE!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "All steps completed successfully" -ForegroundColor Green
 $discInfo = if (-not $Series -and $Disc -gt 1) { " (Disc $Disc)" } else { "" }
 Write-Host "$contentType processed: $title$discInfo" -ForegroundColor White
 Write-Host "Final location: $finalOutputDir" -ForegroundColor White
