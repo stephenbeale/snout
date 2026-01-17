@@ -21,6 +21,72 @@ param(
     [int]$DriveIndex = -1
 )
 
+# ========== STEP TRACKING ==========
+# Define the 4 processing steps
+$script:AllSteps = @(
+    @{ Number = 1; Name = "MakeMKV rip"; Description = "Rip disc to MKV files" }
+    @{ Number = 2; Name = "HandBrake encoding"; Description = "Encode MKV to MP4" }
+    @{ Number = 3; Name = "Organize files"; Description = "Rename and move files" }
+    @{ Number = 4; Name = "Open directory"; Description = "Open output folder" }
+)
+$script:CompletedSteps = @()
+$script:CurrentStep = $null
+$script:LastWorkingDirectory = $null
+
+function Set-CurrentStep {
+    param([int]$StepNumber)
+    $script:CurrentStep = $script:AllSteps | Where-Object { $_.Number -eq $StepNumber }
+}
+
+function Complete-CurrentStep {
+    if ($script:CurrentStep) {
+        $script:CompletedSteps += $script:CurrentStep
+    }
+}
+
+function Get-RemainingSteps {
+    $completedNumbers = $script:CompletedSteps | ForEach-Object { $_.Number }
+    return $script:AllSteps | Where-Object { $_.Number -notin $completedNumbers }
+}
+
+function Get-TitleSummary {
+    $contentType = if ($Series) { "TV Series" } else { "Movie" }
+    $summary = "$contentType`: $title"
+    if ($Series) {
+        if ($Season -gt 0) {
+            $summary += " - Season $Season, Disc $Disc"
+        } else {
+            $summary += " - Disc $Disc"
+        }
+    } elseif ($Disc -gt 1) {
+        $summary += " (Disc $Disc - Special Features)"
+    }
+    return $summary
+}
+
+function Show-StepsSummary {
+    param([switch]$ShowRemaining)
+
+    Write-Host "`n--- STEPS COMPLETED ---" -ForegroundColor Green
+    if ($script:CompletedSteps.Count -eq 0) {
+        Write-Host "  (none)" -ForegroundColor Gray
+    } else {
+        foreach ($step in $script:CompletedSteps) {
+            Write-Host "  [X] Step $($step.Number)/4: $($step.Name)" -ForegroundColor Green
+        }
+    }
+
+    if ($ShowRemaining) {
+        $remaining = Get-RemainingSteps
+        if ($remaining.Count -gt 0) {
+            Write-Host "`n--- STEPS REMAINING ---" -ForegroundColor Yellow
+            foreach ($step in $remaining) {
+                Write-Host "  [ ] Step $($step.Number)/4: $($step.Name) - $($step.Description)" -ForegroundColor Yellow
+            }
+        }
+    }
+}
+
 # ========== HELPER FUNCTIONS ==========
 function Get-UniqueFilePath {
     param([string]$DestDir, [string]$FileName)
@@ -99,17 +165,71 @@ if ($Series) {
 $makemkvconPath = "C:\Program Files (x86)\MakeMKV\makemkvcon64.exe"
 $handbrakePath = "C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe"
 
-# Track progress for error reporting
-$lastSuccessfulStep = "None"
-
 function Stop-WithError {
     param([string]$Step, [string]$Message)
+
     Write-Host "`n========================================" -ForegroundColor Red
     Write-Host "FAILED!" -ForegroundColor Red
     Write-Host "========================================" -ForegroundColor Red
-    Write-Host "Error at: $Step" -ForegroundColor Red
+
+    # Always show what was being processed
+    Write-Host "`nProcessing: $(Get-TitleSummary)" -ForegroundColor White
+
+    Write-Host "`nError at: $Step" -ForegroundColor Red
     Write-Host "Message: $Message" -ForegroundColor Red
-    Write-Host "Last successful step: $lastSuccessfulStep" -ForegroundColor Yellow
+
+    # Show completed and remaining steps
+    Show-StepsSummary -ShowRemaining
+
+    # Determine which directory to open (where leftover files might be)
+    $directoryToOpen = $null
+    if ($script:LastWorkingDirectory -and (Test-Path $script:LastWorkingDirectory)) {
+        $directoryToOpen = $script:LastWorkingDirectory
+    } elseif (Test-Path $makemkvOutputDir) {
+        $directoryToOpen = $makemkvOutputDir
+    } elseif (Test-Path $finalOutputDir) {
+        $directoryToOpen = $finalOutputDir
+    }
+
+    # Show manual steps the user needs to handle
+    Write-Host "`n--- MANUAL STEPS NEEDED ---" -ForegroundColor Cyan
+    $remaining = Get-RemainingSteps
+    foreach ($step in $remaining) {
+        switch ($step.Number) {
+            1 { Write-Host "  - Re-run MakeMKV to rip the disc" -ForegroundColor Yellow }
+            2 {
+                Write-Host "  - Encode MKV files with HandBrake" -ForegroundColor Yellow
+                if (Test-Path $makemkvOutputDir) {
+                    Write-Host "    MKV files location: $makemkvOutputDir" -ForegroundColor Gray
+                }
+            }
+            3 {
+                Write-Host "  - Rename files to proper format" -ForegroundColor Yellow
+                if ($Series) {
+                    if ($seasonTag) {
+                        Write-Host "    Format: $title - $seasonTag`E##.mp4" -ForegroundColor Gray
+                    } else {
+                        Write-Host "    Format: $title - E##.mp4" -ForegroundColor Gray
+                    }
+                } else {
+                    Write-Host "    Format: $title-Feature.mp4 (largest file)" -ForegroundColor Gray
+                    Write-Host "    Move extras to: $extrasDir" -ForegroundColor Gray
+                }
+            }
+            4 { Write-Host "  - Open output directory to verify files" -ForegroundColor Yellow }
+        }
+    }
+
+    # Open the relevant directory so user can see leftover files
+    if ($directoryToOpen) {
+        Write-Host "`n--- OPENING DIRECTORY ---" -ForegroundColor Cyan
+        Write-Host "Opening: $directoryToOpen" -ForegroundColor Yellow
+        Write-Host "(This is where leftover/partial files may be located)" -ForegroundColor Gray
+        Start-Process explorer.exe -ArgumentList $directoryToOpen
+    }
+
+    Write-Host "`n========================================" -ForegroundColor Red
+    Write-Host "Please complete the remaining steps manually" -ForegroundColor Red
     Write-Host "========================================`n" -ForegroundColor Red
     exit 1
 }
@@ -159,6 +279,8 @@ Write-Host "Final Output: $finalOutputDir" -ForegroundColor White
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 # ========== STEP 1: RIP WITH MAKEMKV ==========
+Set-CurrentStep -StepNumber 1
+$script:LastWorkingDirectory = $makemkvOutputDir
 Write-Host "[STEP 1/4] Starting MakeMKV rip..." -ForegroundColor Green
 
 # Use disc: syntax with index if provided (completely bypasses drive enumeration)
@@ -205,7 +327,7 @@ Write-Host "Files ripped: $($rippedFiles.Count)" -ForegroundColor White
 foreach ($file in $rippedFiles) {
     Write-Host "  - $($file.Name) ($([math]::Round($file.Length/1GB, 2)) GB)" -ForegroundColor Gray
 }
-$lastSuccessfulStep = "STEP 1/4: MakeMKV rip"
+Complete-CurrentStep
 
 # Eject disc
 Write-Host "`nEjecting disc from drive $driveLetter..." -ForegroundColor Yellow
@@ -215,6 +337,8 @@ Write-Host "Disc ejected successfully" -ForegroundColor Green
 
 
 # ========== STEP 2: ENCODE WITH HANDBRAKE ==========
+Set-CurrentStep -StepNumber 2
+$script:LastWorkingDirectory = $finalOutputDir
 Write-Host "`n[STEP 2/4] Starting HandBrake encoding..." -ForegroundColor Green
 Write-Host "Creating directory: $finalOutputDir" -ForegroundColor Yellow
 if (!(Test-Path $finalOutputDir)) {
@@ -257,7 +381,7 @@ foreach ($mkv in $mkvFiles) {
         Stop-WithError -Step "STEP 2/4: HandBrake encoding" -Message "Output file not created for $($mkv.Name)"
     }
 }
-$lastSuccessfulStep = "STEP 2/4: HandBrake encoding"
+Complete-CurrentStep
 
 # Wait for HandBrake to fully release file handles before proceeding
 Write-Host "`nWaiting for file handles to be released..." -ForegroundColor Yellow
@@ -277,6 +401,8 @@ if ($encodedFiles.Count -gt 0) {
 }
 
 # ========== STEP 3: RENAME AND ORGANIZE ==========
+Set-CurrentStep -StepNumber 3
+$script:LastWorkingDirectory = $finalOutputDir
 Write-Host "`n[STEP 3/4] Organizing files..." -ForegroundColor Green
 cd $finalOutputDir
 
@@ -427,33 +553,28 @@ if ($Series) {
         }
     }
 }
-$lastSuccessfulStep = "STEP 3/4: File organization"
+Complete-CurrentStep
 
 # ========== STEP 4: OPEN DIRECTORY ==========
+Set-CurrentStep -StepNumber 4
 Write-Host "`n[STEP 4/4] Opening film directory..." -ForegroundColor Green
 Write-Host "Opening: $finalOutputDir" -ForegroundColor Yellow
 start $finalOutputDir
-$lastSuccessfulStep = "STEP 4/4: Open directory"
+Complete-CurrentStep
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "COMPLETE!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "All steps completed successfully" -ForegroundColor Green
 
-if ($Series) {
-    Write-Host "$contentType processed: $title" -ForegroundColor White
-    if ($Season -gt 0) {
-        Write-Host "Season: $Season (Disc $Disc)" -ForegroundColor White
-    } else {
-        Write-Host "Disc: $Disc" -ForegroundColor White
-    }
-} else {
-    $discInfo = if ($Disc -gt 1) { " (Disc $Disc)" } else { "" }
-    Write-Host "$contentType processed: $title$discInfo" -ForegroundColor White
-}
+# Always show title being processed
+Write-Host "`nProcessed: $(Get-TitleSummary)" -ForegroundColor White
 Write-Host "Final location: $finalOutputDir" -ForegroundColor White
 
-Write-Host "`nSummary:" -ForegroundColor Cyan
+# Show summary of completed steps
+Show-StepsSummary
+
+# File summary
+Write-Host "`n--- FILE SUMMARY ---" -ForegroundColor Cyan
 $finalFiles = Get-ChildItem -Path $finalOutputDir -File -Recurse
 Write-Host "  Total files: $($finalFiles.Count)" -ForegroundColor White
 Write-Host "  Total size: $([math]::Round(($finalFiles | Measure-Object -Property Length -Sum).Sum/1GB, 2)) GB" -ForegroundColor White
