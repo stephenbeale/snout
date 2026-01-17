@@ -6,7 +6,7 @@ param(
     [switch]$Series,
 
     [Parameter()]
-    [int]$Season = 1,
+    [int]$Season = 0,
 
     [Parameter()]
     [int]$StartEpisode = 1,
@@ -59,9 +59,14 @@ $driveDescription = if ($DriveIndex -ge 0) {
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Ready to rip: $title" -ForegroundColor White
 if ($Series) {
-    $seasonTagPreview = "S{0:D2}" -f $Season
-    Write-Host "Type: TV Series - Season $Season ($seasonTagPreview), Disc $Disc" -ForegroundColor White
-    Write-Host "Starting at: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
+    if ($Season -gt 0) {
+        $seasonTagPreview = "S{0:D2}" -f $Season
+        Write-Host "Type: TV Series - Season $Season ($seasonTagPreview), Disc $Disc" -ForegroundColor White
+        Write-Host "Starting at: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
+    } else {
+        Write-Host "Type: TV Series - Disc $Disc (no season folder)" -ForegroundColor White
+        Write-Host "Starting at: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
+    }
 } else {
     $discType = if ($Disc -eq 1) { "Main Feature" } else { "Special Features" }
     Write-Host "Type: Movie - $discType (Disc $Disc)" -ForegroundColor White
@@ -73,13 +78,20 @@ $response = Read-Host "Press Enter to continue, or Ctrl+C to abort"
 # ========== CONFIGURATION ==========
 $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
 
-# Series: organize into Season subfolders with proper naming
+# Series: organize into Season subfolders with proper naming (only if Season explicitly specified)
 # Movies: organize into title folder with optional extras
 if ($Series) {
-    $seasonTag = "S{0:D2}" -f $Season
-    $seasonFolder = "Season $Season"
     $seriesBaseDir = "E:\Series\$title"
-    $finalOutputDir = Join-Path $seriesBaseDir $seasonFolder
+    if ($Season -gt 0) {
+        # Season explicitly specified - use Season subfolder and episode tags
+        $seasonTag = "S{0:D2}" -f $Season
+        $seasonFolder = "Season $Season"
+        $finalOutputDir = Join-Path $seriesBaseDir $seasonFolder
+    } else {
+        # No season specified - output directly to series folder, no season tag
+        $seasonTag = $null
+        $finalOutputDir = $seriesBaseDir
+    }
 } else {
     $finalOutputDir = "E:\DVDs\$title"
 }
@@ -132,7 +144,11 @@ if ($DriveIndex -ge 0) {
     Write-Host "Drive: $driveLetter" -ForegroundColor White
 }
 if ($Series) {
-    Write-Host "Season: $Season ($seasonTag)" -ForegroundColor White
+    if ($Season -gt 0) {
+        Write-Host "Season: $Season ($seasonTag)" -ForegroundColor White
+    } else {
+        Write-Host "Season: (none - no season folder)" -ForegroundColor White
+    }
     Write-Host "Disc: $Disc" -ForegroundColor White
     Write-Host "Starting Episode: E$("{0:D2}" -f $StartEpisode)" -ForegroundColor White
 } else {
@@ -243,6 +259,11 @@ foreach ($mkv in $mkvFiles) {
 }
 $lastSuccessfulStep = "STEP 2/4: HandBrake encoding"
 
+# Wait for HandBrake to fully release file handles before proceeding
+Write-Host "`nWaiting for file handles to be released..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+Write-Host "File handle wait complete" -ForegroundColor Green
+
 # Delete MakeMKV temporary directory after successful encode
 Write-Host "`nChecking for successful encodes..." -ForegroundColor Yellow
 $encodedFiles = Get-ChildItem -Path $finalOutputDir -Filter "*.mp4"
@@ -275,7 +296,11 @@ if ($imageFiles) {
 
 if ($Series) {
     # ========== SERIES MODE: Episode naming ==========
-    Write-Host "`nRenaming episodes with $seasonTag format..." -ForegroundColor Yellow
+    if ($seasonTag) {
+        Write-Host "`nRenaming episodes with $seasonTag format..." -ForegroundColor Yellow
+    } else {
+        Write-Host "`nRenaming episodes (no season tag)..." -ForegroundColor Yellow
+    }
 
     # Get all MP4 files sorted by name (MakeMKV typically names them title00.mkv, title01.mkv, etc.)
     $episodeFiles = Get-ChildItem -File -Filter "*.mp4" | Sort-Object Name
@@ -287,7 +312,11 @@ if ($Series) {
 
         foreach ($episode in $episodeFiles) {
             $episodeTag = "E{0:D2}" -f $currentEpisode
-            $newName = "$title - $seasonTag$episodeTag$($episode.Extension)"
+            if ($seasonTag) {
+                $newName = "$title - $seasonTag$episodeTag$($episode.Extension)"
+            } else {
+                $newName = "$title - $episodeTag$($episode.Extension)"
+            }
 
             Write-Host "  $($episode.Name) -> $newName" -ForegroundColor Yellow
             Rename-Item -Path $episode.FullName -NewName $newName
@@ -295,11 +324,15 @@ if ($Series) {
         }
 
         $lastEpisode = $currentEpisode - 1
-        Write-Host "Episode renaming complete ($seasonTag`E$("{0:D2}" -f $StartEpisode) to $seasonTag`E$("{0:D2}" -f $lastEpisode))" -ForegroundColor Green
+        if ($seasonTag) {
+            Write-Host "Episode renaming complete ($seasonTag`E$("{0:D2}" -f $StartEpisode) to $seasonTag`E$("{0:D2}" -f $lastEpisode))" -ForegroundColor Green
+        } else {
+            Write-Host "Episode renaming complete (E$("{0:D2}" -f $StartEpisode) to E$("{0:D2}" -f $lastEpisode))" -ForegroundColor Green
+        }
 
         # Calculate and display next episode number for user convenience
         Write-Host "`n--- NEXT DISC INFO ---" -ForegroundColor Cyan
-        Write-Host "For the next disc of this season, use:" -ForegroundColor White
+        Write-Host "For the next disc, use:" -ForegroundColor White
         Write-Host "  -StartEpisode $currentEpisode" -ForegroundColor Yellow
         Write-Host "----------------------" -ForegroundColor Cyan
     } else {
@@ -409,7 +442,11 @@ Write-Host "All steps completed successfully" -ForegroundColor Green
 
 if ($Series) {
     Write-Host "$contentType processed: $title" -ForegroundColor White
-    Write-Host "Season: $Season (Disc $Disc)" -ForegroundColor White
+    if ($Season -gt 0) {
+        Write-Host "Season: $Season (Disc $Disc)" -ForegroundColor White
+    } else {
+        Write-Host "Disc: $Disc" -ForegroundColor White
+    }
 } else {
     $discInfo = if ($Disc -gt 1) { " (Disc $Disc)" } else { "" }
     Write-Host "$contentType processed: $title$discInfo" -ForegroundColor White
