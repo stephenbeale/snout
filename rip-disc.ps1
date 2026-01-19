@@ -24,6 +24,15 @@ param(
     [string]$OutputDrive = "E:"
 )
 
+# ========== VALIDATE OutputDrive PARAMETER ==========
+# Normalize: strip any trailing colon or backslash, validate single letter A-Z
+$normalizedDrive = $OutputDrive -replace '[:\\]', ''
+if ($normalizedDrive -notmatch '^[A-Za-z]$') {
+    Write-Host "Error: OutputDrive must be a single drive letter (A-Z). Got: '$OutputDrive'" -ForegroundColor Red
+    exit 1
+}
+$OutputDrive = $normalizedDrive.ToUpper() + ":"
+
 # ========== STEP TRACKING ==========
 # Define the 4 processing steps
 $script:AllSteps = @(
@@ -178,13 +187,10 @@ $response = Read-Host "Press Enter to continue, or Ctrl+C to abort"
 # ========== CONFIGURATION ==========
 $makemkvOutputDir = "C:\Video\$title"  # MakeMKV rips here first
 
-# Normalize output drive letter (add colon if missing)
-$outputDriveLetter = if ($OutputDrive -match ':$') { $OutputDrive } else { "${OutputDrive}:" }
-
 # Series: organize into Season subfolders with proper naming (only if Season explicitly specified)
 # Movies: organize into title folder with optional extras
 if ($Series) {
-    $seriesBaseDir = "$outputDriveLetter\Series\$title"
+    $seriesBaseDir = "$OutputDrive\Series\$title"
     if ($Season -gt 0) {
         # Season explicitly specified - use Season subfolder and episode tags
         $seasonTag = "S{0:D2}" -f $Season
@@ -196,7 +202,7 @@ if ($Series) {
         $finalOutputDir = $seriesBaseDir
     }
 } else {
-    $finalOutputDir = "$outputDriveLetter\DVDs\$title"
+    $finalOutputDir = "$OutputDrive\DVDs\$title"
 }
 
 $makemkvconPath = "C:\Program Files (x86)\MakeMKV\makemkvcon64.exe"
