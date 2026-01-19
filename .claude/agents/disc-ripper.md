@@ -12,12 +12,13 @@ The script is located at: `C:\Users\sjbeale\source\repos\ripdisc\rip-disc.ps1`
 
 ## Script Parameters
 - `-title` (required): The name of the movie or TV series
-- `-Series` (switch): Use for TV series - outputs to E:\Series\
+- `-Series` (switch): Use for TV series - outputs to Series folder
 - `-Season` (int, default 0): Season number - only creates Season folder when explicitly specified (e.g., `-Season 2`)
 - `-StartEpisode` (int, default 1): Starting episode number for multi-disc seasons
 - `-Disc` (int, default 1): Disc number for multi-disc films or series
 - `-Drive` (string, default "D:"): Drive letter containing the disc (causes drive enumeration)
 - `-DriveIndex` (int, default -1): MakeMKV drive index - bypasses drive enumeration (RECOMMENDED)
+- `-OutputDrive` (string, default "E:"): Drive letter for output directories (accepts "E" or "E:" format)
 
 ### Drive Selection
 **RECOMMENDED: Use `-DriveIndex` to avoid spinning up other drives.**
@@ -31,10 +32,11 @@ The `-DriveIndex` parameter uses MakeMKV's `disc:X` syntax which completely bypa
 The script shows a confirmation prompt before starting, displaying which drive will be used.
 
 ## Output Locations
-- Movies: `E:\DVDs\<title>\`
-- TV Series (no season): `E:\Series\<title>\`
-- TV Series (with season): `E:\Series\<title>\Season <N>\`
-- Temporary MakeMKV output: `C:\Video\<title>\`
+Output locations use the `-OutputDrive` parameter (default E:):
+- Movies: `<OutputDrive>:\DVDs\<title>\`
+- TV Series (no season): `<OutputDrive>:\Series\<title>\`
+- TV Series (with season): `<OutputDrive>:\Series\<title>\Season <N>\`
+- Temporary MakeMKV output: `C:\Video\<title>\Disc<N>\` (disc-specific for concurrent ripping)
 
 ## Command Templates
 
@@ -46,6 +48,11 @@ cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -
 ### Single Movie - G: ASUS external (DriveIndex 1)
 ```powershell
 cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -DriveIndex 1
+```
+
+### Single Movie - Output to F: drive
+```powershell
+cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -DriveIndex 0 -OutputDrive "F:"
 ```
 
 ### TV Series (no season folder)
@@ -67,19 +74,20 @@ cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Series Name" 
 cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Series Name" -Series -Season 1 -Disc 2 -StartEpisode 5 -DriveIndex 0
 ```
 
-### Multi-Disc Film (Disc 1 - Main Feature)
+### Multi-Disc Film (Concurrent Ripping)
 ```powershell
+# Terminal 1 - Disc 1 (Main Feature) on internal drive
 cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -DriveIndex 0
-```
 
-### Multi-Disc Film (Disc 2 - Special Features)
-```powershell
-cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -Disc 2 -DriveIndex 0
+# Terminal 2 - Disc 2 (Special Features) on external drive - can run simultaneously
+cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Movie Name" -Disc 2 -DriveIndex 1
 ```
+- Disc 1 files: `Movie Name-Feature.mp4`, extras in `extras/`
+- Disc 2 files: `Movie Name-Special Features-<name>.mp4` in `extras/`
 
 ## Processing Steps
 The script runs 4 steps:
-1. **MakeMKV rip** - Rip disc to MKV files (to C:\Video\<title>\)
+1. **MakeMKV rip** - Rip disc to MKV files (to C:\Video\<title>\Disc<N>\)
 2. **HandBrake encoding** - Encode MKV to MP4 (to final output folder)
 3. **Organize files** - Rename and move files
 4. **Open directory** - Open output folder
@@ -87,10 +95,13 @@ The script runs 4 steps:
 ## Behavior by Mode
 
 ### Movie Mode (default)
-- Creates folder in `E:\DVDs\<title>\`
+- Creates folder in `<OutputDrive>:\DVDs\<title>\`
 - Renames largest file to `<title>-Feature.mp4`
 - Moves other videos to `extras\` subfolder
-- Disc 2+ goes directly to `extras\` folder
+- **Disc 2+ (Special Features):**
+  - Files named with "Special Features" prefix: `<title>-Special Features-<originalname>.mp4`
+  - All files go directly to `extras\` folder
+  - Can run concurrently with Disc 1 (separate temp directories)
 
 ### Series Mode (-Series)
 **Without -Season parameter:**
@@ -112,8 +123,10 @@ The script runs 4 steps:
    - TV series: use -Series flag, ask if they want season folders
 3. Generate the appropriate PowerShell command(s)
 4. For multi-disc films:
-   - Commands can be run in PARALLEL (separate terminals)
+   - Commands can be run in PARALLEL (separate terminals on different drives)
+   - Each disc has its own temp directory: `C:\Video\<title>\Disc1\`, `C:\Video\<title>\Disc2\`
    - Disc 2+ safely creates directories if disc 1 hasn't yet
+   - Disc 2+ files are named with "Special Features" prefix for clarity
 5. For TV series:
    - Ask if they want season folders (use -Season if yes)
    - For multi-disc seasons, provide -StartEpisode for disc 2+
@@ -161,14 +174,16 @@ cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "Inception" -D
 **Response:** For The Dark Knight with 2 discs, here are the commands:
 
 ```powershell
-# Disc 1 (Main Feature) - run in Terminal 1
+# Disc 1 (Main Feature) - run in Terminal 1 using internal drive
 cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "The Dark Knight" -DriveIndex 0
 
-# Disc 2 (Special Features) - can run in parallel in Terminal 2
-cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "The Dark Knight" -Disc 2 -DriveIndex 0
+# Disc 2 (Special Features) - run in parallel in Terminal 2 using external drive
+cd "C:\Users\sjbeale\source\repos\ripdisc"; .\rip-disc.ps1 -title "The Dark Knight" -Disc 2 -DriveIndex 1
 ```
 
-You can run both discs in parallel using separate terminal windows.
+You can run both discs **concurrently** using separate terminal windows and different drives:
+- Temp files go to separate directories: `C:\Video\The Dark Knight\Disc1\` and `C:\Video\The Dark Knight\Disc2\`
+- Disc 2 files will be named: `The Dark Knight-Special Features-<name>.mp4` in the `extras\` folder
 
 **User:** "Rip Breaking Bad Season 3, it's on 2 discs"
 **Response:** Here are the commands for Breaking Bad Season 3:
