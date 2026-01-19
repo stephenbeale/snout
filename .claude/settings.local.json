@@ -42,7 +42,19 @@
       "Bash(powershell.exe -Command \"where.exe python\")",
       "Bash(powershell.exe -Command \"pip --version; pip show pytest\")",
       "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\Users\\\\sjbeale'' -Filter ''python.exe'' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5 FullName\")",
-      "Bash(powershell.exe -Command \"Test-Path ''C:\\\\Python*''; Get-ChildItem ''C:\\\\Program Files\\\\Python*'' -ErrorAction SilentlyContinue | Select-Object Name\")"
+      "Bash(powershell.exe -Command \"Test-Path ''C:\\\\Python*''; Get-ChildItem ''C:\\\\Program Files\\\\Python*'' -ErrorAction SilentlyContinue | Select-Object Name\")",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git fetch:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(sort:*)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\repos\\\\ripdisc\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" diff \".claude/settings.local.json\")",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\repos\\\\ripdisc\" log --oneline -10)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\repos\\\\ripdisc\" log --since=\"2 days ago\" --oneline)",
+      "Bash(git -C \"C:\\\\Users\\\\sjbeale\\\\source\\\\claude\" diff --no-color \".claude/settings.local.json\")"
     ]
   }
 }
