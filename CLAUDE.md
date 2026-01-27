@@ -284,3 +284,154 @@ Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear
 - Documentation updated in 43b8f3d: "Update session notes: Test suite updates and notification testing"
 - Only uncommitted file is `.claude/settings.local.json` (local configuration, should not be committed)
 - The `rip-disc.ps1` file is untracked and unrelated to this project
+
+### 2026-01-12 - DVD/Blu-ray Ripping Script and Multi-Disc Support
+
+**Work Completed:**
+- Created `rip-disc.ps1` PowerShell script for automated DVD/Blu-ray ripping:
+  - Uses MakeMKV for ripping, HandBrake for encoding (Fast 1080p30 preset)
+  - Auto-ejects disc after ripping
+  - Prefixes files with title, renames largest as Feature
+  - Moves extras to subfolder, deletes image files
+- Added multi-disc film support with `-Disc` parameter:
+  - Disc 1: Normal movie behavior (Feature rename, extras handling)
+  - Disc 2+: Files go to extras folder, excludes Feature file
+  - Safe for parallel execution in separate terminals
+- Created `disc-ripper` agent in `.claude/agents/`:
+  - Generates correct PowerShell commands for movies, TV series, multi-disc films
+  - Documents all script parameters and behaviors
+- Fixed parallel disc ripping issues:
+  - Disc 2+ creates parent dir and extras folder upfront
+  - Excludes Feature file when moving to extras (prevents disc 1's Feature being moved)
+- Simplified directory opening: now only opens film directory, not parent DVDs folder
+- Removed ralph-loop plugin from Claude Code settings
+
+**Commits:**
+- `46821f0`: feat: add DVD/Blu-ray ripping script with multi-disc support
+- `6749450`: feat: add multi-disc support and disc-ripper agent
+- `0e146d9`: fix: parallel disc ripping and Feature file protection
+
+**Technical Notes:**
+- Script location: `C:\Users\sjbeale\source\claude\rip-disc.ps1`
+- MakeMKV path: `C:\Program Files (x86)\MakeMKV\makemkvcon64.exe`
+- HandBrake CLI path: `C:\ProgramData\chocolatey\bin\HandBrakeCLI.exe`
+- Output locations: Movies → `E:\DVDs\<title>\`, Series → `E:\Series\<title>\`
+- Minimum title length: 120 seconds (filters menus/short clips)
+- `Get-UniqueFilePath` helper handles filename clashes with `-1`, `-2` suffixes
+
+### 2026-01-12 - eBay UK Chrome Extension Development
+
+**Work Completed:**
+- Created Chrome extension for eBay UK price research (`ebay-filter-extension/`)
+- Implemented Manifest V3 compliant extension with:
+  - `manifest.json` - Extension manifest with proper permissions and host restrictions
+  - `background.js` - Service worker for managing extension icon state (greyed out on non-eBay sites)
+  - `popup/popup.html` - Popup UI with toggle switches for filters
+  - `popup/popup.css` - Clean styling for popup interface
+  - `popup/popup.js` - URL manipulation logic and filter state synchronization
+  - `README.md` - Comprehensive documentation with installation and usage instructions
+  - `icons/README.md` - Icon requirements documentation
+- Extension features:
+  - **Sold Items Toggle** - Adds/removes `LH_Sold=1` parameter
+  - **Condition: New Toggle** - Adds/removes `LH_ItemCondition=4` parameter
+  - **UK Only Toggle** - Adds/removes `LH_PrefLoc=1` parameter
+  - **Buy It Now Toggle** - Adds/removes `LH_BIN=1` parameter
+  - **Clear All Filters Button** - Removes all eBay filter parameters from URL
+  - State synchronization - Toggles reflect current URL state when popup opens
+  - Icon state management - Extension icon greyed out when not on ebay.co.uk
+- Chrome extension permissions:
+  - `activeTab` - Access to current tab for URL reading
+  - `tabs` - Query and update tab URLs
+  - Host permissions restricted to `https://www.ebay.co.uk/*`
+
+**Technical Implementation:**
+- URL manipulation via URLSearchParams API
+- Service worker pattern for background.js (Manifest V3 requirement)
+- Filter state detection from URL parameters
+- Page reload after filter application using `chrome.tabs.update()`
+- Extension icon enabling/disabling based on current URL host
+
+**Work In Progress:**
+- Chrome extension has been created but not yet committed to repository
+- Icons need to be created (16x16, 48x48, 128x128 PNG files)
+- Extension not yet tested in Chrome browser
+
+**Next Steps:**
+- Commit the chrome extension to the repository (handled by git-manager agent)
+- Create icon files for the extension:
+  - icon16.png (16x16 pixels)
+  - icon48.png (48x48 pixels)
+  - icon128.png (128x128 pixels)
+- Test extension installation in Chrome:
+  - Load unpacked extension from `ebay-filter-extension/` folder
+  - Verify toggles work correctly on ebay.co.uk search pages
+  - Confirm icon state changes when navigating between eBay and non-eBay sites
+- Consider future enhancements:
+  - Add more eBay filter options (price range, shipping, returns policy)
+  - Add keyboard shortcuts for toggling filters
+  - Save favorite filter combinations
+
+**Technical Notes:**
+- Extension location: `C:\Users\sjbeale\source\claude\ebay-filter-extension\`
+- Manifest V3 is the current Chrome extension standard (V2 deprecated)
+- Extension only activates on ebay.co.uk (not ebay.com or other eBay country sites)
+- URLSearchParams API handles URL encoding and parameter management
+- Service worker replaces persistent background pages from Manifest V2
+- Extension complements the existing `ebay-uk-price-researcher` custom agent
+
+### 2026-01-12 - eBay UK Chrome Extension - Final Session
+
+**Work Completed:**
+- Completed eBay UK Chrome extension development and committed to repository
+- Fixed persistent filter storage using `chrome.storage.sync` API:
+  - Toggle states now persist across browser sessions
+  - State synchronized across all Chrome devices when signed in
+  - Fixed toggle logic to work with stored state instead of just URL parameters
+- Enhanced `popup.js` with proper state management:
+  - `loadFilterState()` reads from chrome.storage.sync on popup open
+  - `saveFilterState()` persists toggle states after changes
+  - Fixed checkbox sync to read from storage, not just URL
+- Updated `manifest.json` with `storage` permission for persistence
+- Enhanced README.md with clearer usage instructions and persistent state documentation
+
+**Commits Pushed:**
+- `7360b03`: feat: add eBay UK price research Chrome extension
+- `2045cc1`: fix(extension): add persistent filter storage and fix toggle logic
+- `8f39138`: feat(rip-disc): add -Drive parameter for drive selection (already on remote)
+
+**Technical Implementation:**
+- Chrome Storage API (`chrome.storage.sync`) for cross-device synchronization
+- Storage keys: `soldItems`, `conditionNew`, `ukOnly`, `buyItNow`
+- Toggle states independent of current URL parameters
+- Page reload triggers after URL update to apply filters
+- Extension works seamlessly with eBay's URL parameter-based filtering system
+
+**Workflow Notes:**
+- Commits were pushed directly to master branch (no PR workflow)
+- For future feature work, consider creating feature branches first:
+  - Example: `feature/2-extension-price-range-filters`
+  - Then create PR for review before merging to master
+- This approach provides better tracking and allows for code review
+
+**Next Steps:**
+- Create icon files for the extension:
+  - icon16.png (16x16 pixels)
+  - icon48.png (48x48 pixels)
+  - icon128.png (128x128 pixels)
+- Test extension in Chrome browser:
+  - Load unpacked extension from `ebay-filter-extension/` directory
+  - Verify filter toggles work correctly on ebay.co.uk
+  - Test persistent state across browser restarts
+  - Confirm icon greying on non-eBay sites
+- Consider future enhancements:
+  - Price range filters (min/max price inputs)
+  - Shipping options (free shipping, local pickup)
+  - Saved filter presets ("Research Mode", "Buy It Now Only", etc.)
+  - Keyboard shortcuts for quick filter access
+
+**Technical Notes:**
+- Extension complements the `ebay-uk-price-researcher` custom agent workflow
+- Filter persistence enables consistent research workflow without reconfiguring
+- Storage API is more robust than localStorage for extension state management
+- Extension only activates on ebay.co.uk domain (host_permissions restriction)
+- Branch is 1 commit ahead of origin/master (`8f39138` needs push)

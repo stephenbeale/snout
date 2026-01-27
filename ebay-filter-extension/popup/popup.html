@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eBay UK Filters</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>eBay UK Filters</h1>
+
+    <div id="not-ebay-message" class="message hidden">
+      <p>This extension only works on eBay UK.</p>
+      <p class="subdued">Navigate to ebay.co.uk to use filters.</p>
+    </div>
+
+    <div id="filters-container">
+      <div class="filter-row">
+        <label class="toggle-label" for="toggle-sold">
+          <span class="label-text">Sold Items</span>
+          <span class="label-param">LH_Sold=1</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-sold" data-param="LH_Sold" data-value="1">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="filter-row">
+        <label class="toggle-label" for="toggle-new">
+          <span class="label-text">Condition: New</span>
+          <span class="label-param">LH_ItemCondition=4</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-new" data-param="LH_ItemCondition" data-value="4">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="filter-row">
+        <label class="toggle-label" for="toggle-uk">
+          <span class="label-text">UK Only</span>
+          <span class="label-param">LH_PrefLoc=1</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-uk" data-param="LH_PrefLoc" data-value="1">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="filter-row">
+        <label class="toggle-label" for="toggle-bin">
+          <span class="label-text">Buy It Now</span>
+          <span class="label-param">LH_BIN=1</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-bin" data-param="LH_BIN" data-value="1">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="clear-all" class="btn-clear">Clear All Filters</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
