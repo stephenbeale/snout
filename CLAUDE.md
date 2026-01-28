@@ -74,6 +74,12 @@ To create a new agent:
 
 Note: Agents must have a corresponding `.md` file in `.claude/agents/` to appear in the agent list. The agent name in the frontmatter should match the filename (without extension).
 
+## User Shortcuts
+
+Quick commands for interacting with Claude Code:
+
+- **`1`** - Continue after a pause or rate limit. When Claude pauses mid-task or hits a rate limit, respond with `1` to signal "continue where you left off"
+
 ## Notes
 
 - The eBay Finding API returns deeply nested JSON arrays; see `EbayFindingService._parse_item()` for the extraction pattern
