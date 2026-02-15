@@ -80,6 +80,16 @@ Quick commands for interacting with Claude Code:
 
 - **`1`** - Continue after a pause or rate limit. When Claude pauses mid-task or hits a rate limit, respond with `1` to signal "continue where you left off"
 
+## Interaction Style
+
+- **Always offer numbered next steps** - At the end of every response where there are possible next actions, present them as a numbered list so the user can respond with just a number instead of typing out instructions. E.g.:
+  ```
+  What next?
+  1. Fix the bug in the login form
+  2. Add unit tests
+  3. Continue with roadmap
+  ```
+
 ## Notes
 
 - The eBay Finding API returns deeply nested JSON arrays; see `EbayFindingService._parse_item()` for the extraction pattern
