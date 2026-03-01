@@ -36,6 +36,10 @@ class Config:
     # API endpoints
     ebay_finding_api: str = "https://svcs.ebay.com/services/search/FindingService/v1"
     ebay_browse_api: str = "https://api.ebay.com/buy/browse/v1"
+    ebay_token_endpoint: str = "https://api.ebay.com/identity/v1/oauth2/token"
+
+    # Browse API defaults
+    default_marketplace: str = "EBAY_GB"
 
     # Request settings
     request_timeout: int = 30
@@ -56,6 +60,7 @@ class Config:
             ebay_app_id=os.environ.get("EBAY_APP_ID"),
             ebay_cert_id=os.environ.get("EBAY_CERT_ID"),
             ebay_oauth_token=os.environ.get("EBAY_OAUTH_TOKEN"),
+            default_marketplace=os.environ.get("DEFAULT_MARKETPLACE", "EBAY_GB"),
         )
 
     @property
@@ -100,7 +105,7 @@ class Config:
         return status
 
 
-# eBay condition ID mapping
+# eBay Finding API condition ID mapping (legacy)
 CONDITION_MAP = {
     "new": "1000",
     "open_box": "1500",
@@ -109,13 +114,31 @@ CONDITION_MAP = {
     "for_parts": "7000",
 }
 
-# eBay sort order mapping
+# eBay Finding API sort order mapping (legacy)
 SORT_MAP = {
     "best_match": "BestMatch",
     "price_asc": "PricePlusShippingLowest",
     "price_desc": "PricePlusShippingHighest",
     "date_asc": "EndTimeSoonest",
     "date_desc": "StartTimeNewest",
+}
+
+# Browse API condition ID mapping
+BROWSE_CONDITION_MAP = {
+    "new": "1000",
+    "open_box": "1500",
+    "refurbished": "2000|2500",
+    "used": "3000",
+    "for_parts": "7000",
+}
+
+# Browse API sort mapping
+BROWSE_SORT_MAP = {
+    "best_match": "bestMatch",
+    "price_asc": "price",
+    "price_desc": "-price",
+    "date_asc": "endingSoonest",
+    "date_desc": "newlyListed",
 }
 
 

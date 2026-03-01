@@ -3,13 +3,17 @@ Snout - eBay Reseller Price Lookup API
 """
 import logging
 import os
+from dataclasses import asdict
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from .config import CONDITION_MAP, SORT_MAP, Config, setup_logging
+from .config import BROWSE_CONDITION_MAP, BROWSE_SORT_MAP, CONDITION_MAP, SORT_MAP, Config, setup_logging
 from .services import EbayFindingService, calculate_price_stats
+from .services.auth_service import AuthError, EbayAuthService
+from .services.ebay_browse_service import BrowseApiError, BrowseSearchQuery, EbayBrowseService
 from .services.ebay_service import EbayApiError, SearchQuery
 from .services.price_analyzer import compare_prices
 from .utils.validators import ValidationError, validate_keywords, validate_price
@@ -24,6 +28,7 @@ config = Config.from_env()
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -33,8 +38,14 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-# Initialize eBay service
+# Initialize eBay services
 ebay_service = EbayFindingService(config)
+
+# Initialize Browse API service (requires both app_id and cert_id)
+browse_service = None
+if config.ebay_app_id and config.ebay_cert_id:
+    auth_service = EbayAuthService(config.ebay_app_id, config.ebay_cert_id)
+    browse_service = EbayBrowseService(config, auth_service)
 
 
 def parse_filter_params() -> dict:
@@ -94,9 +105,14 @@ def items_to_dicts(items) -> list[dict]:
     return result
 
 
+def browse_items_to_dicts(items) -> list[dict]:
+    """Convert BrowseItem objects to dictionaries."""
+    return [asdict(item) for item in items]
+
+
 def execute_search(keywords: str, sold: bool, filters: dict) -> tuple[dict, int]:
     """
-    Execute a search and return the response.
+    Execute a search using the Finding API and return the response.
 
     Args:
         keywords: Search keywords
@@ -141,10 +157,102 @@ def handle_validation_error(error: ValidationError):
 
 @app.errorhandler(EbayApiError)
 def handle_ebay_error(error: EbayApiError):
-    """Handle eBay API errors."""
+    """Handle eBay Finding API errors."""
     logger.error("eBay API error: %s", str(error))
     return jsonify({"error": "Failed to fetch data from eBay"}), 502
 
+
+@app.errorhandler(BrowseApiError)
+def handle_browse_error(error: BrowseApiError):
+    """Handle eBay Browse API errors."""
+    logger.error("Browse API error: %s", str(error))
+    return jsonify({"error": "Failed to fetch data from eBay Browse API"}), 502
+
+
+@app.errorhandler(AuthError)
+def handle_auth_error(error: AuthError):
+    """Handle eBay auth errors."""
+    logger.error("Auth error: %s", str(error))
+    return jsonify({"error": "eBay authentication failed"}), 502
+
+
+# ─── Browse API endpoint (new) ──────────────────────────────────────────────
+
+@app.route("/api/search")
+@limiter.limit(config.rate_limit_search)
+def api_search():
+    """
+    Search active eBay listings via Browse API.
+
+    Query params:
+        q: Search keywords (required)
+        condition: Filter by condition (new, open_box, refurbished, used, for_parts)
+        min_price: Minimum price filter
+        max_price: Maximum price filter
+        sort: Sort order (best_match, price_asc, price_desc, date_asc, date_desc)
+        limit: Results per page (default 50, max 200)
+        offset: Pagination offset (default 0)
+    """
+    if not browse_service:
+        return jsonify({"error": "eBay Browse API not configured (need APP_ID + CERT_ID)"}), 500
+
+    keywords = validate_keywords(
+        request.args.get("q"),
+        max_length=config.max_keyword_length,
+    )
+
+    filters = parse_filter_params()
+    limit = min(request.args.get("limit", 50, type=int), 200)
+    offset = request.args.get("offset", 0, type=int)
+
+    logger.info("Browse search: keywords=%s, filters=%s", keywords, filters)
+
+    query = BrowseSearchQuery(
+        keywords=keywords,
+        condition=filters["condition"],
+        min_price=filters["min_price"],
+        max_price=filters["max_price"],
+        sort=filters["sort"],
+        marketplace=config.default_marketplace,
+        limit=limit,
+        offset=offset,
+    )
+
+    items = browse_service.search(query)
+
+    # Calculate stats using total_price
+    prices = [item.total_price for item in items if item.total_price > 0]
+    stats = None
+    if prices:
+        import statistics
+        stats = {
+            "count": len(prices),
+            "average": round(statistics.mean(prices), 2),
+            "median": round(statistics.median(prices), 2),
+            "min": round(min(prices), 2),
+            "max": round(max(prices), 2),
+            "std_dev": round(statistics.stdev(prices), 2) if len(prices) > 1 else 0,
+        }
+
+    return jsonify({
+        "query": keywords,
+        "filters": build_filters_response(
+            filters["condition"],
+            filters["min_price"],
+            filters["max_price"],
+            filters["sort"],
+        ),
+        "stats": stats,
+        "items": browse_items_to_dicts(items),
+        "pagination": {
+            "limit": limit,
+            "offset": offset,
+            "returned": len(items),
+        },
+    })
+
+
+# ─── Legacy Finding API endpoints ───────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -152,20 +260,21 @@ def index():
     return jsonify({
         "name": "Snout",
         "description": "eBay Reseller Price Lookup API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "endpoints": {
-            "/search/sold": "Search sold/completed listings",
-            "/search/active": "Search active listings",
-            "/search/compare": "Compare sold vs active prices",
+            "/api/search": "Search active listings (Browse API)",
+            "/search/sold": "[Legacy] Search sold/completed listings (Finding API)",
+            "/search/active": "[Legacy] Search active listings (Finding API)",
+            "/search/compare": "[Legacy] Compare sold vs active prices (Finding API)",
             "/config/status": "Check credential configuration status",
             "/health": "Health check",
         },
         "filters": {
-            "condition": list(CONDITION_MAP.keys()),
+            "condition": list(BROWSE_CONDITION_MAP.keys()),
             "min_price": "Minimum price (float)",
             "max_price": "Maximum price (float)",
         },
-        "sort_options": list(SORT_MAP.keys()),
+        "sort_options": list(BROWSE_SORT_MAP.keys()),
     })
 
 
@@ -173,7 +282,7 @@ def index():
 @limiter.limit(config.rate_limit_search)
 def search_sold():
     """
-    Search for sold/completed eBay listings.
+    [Legacy] Search for sold/completed eBay listings via Finding API.
 
     Query params:
         q: Search keywords (required)
@@ -201,7 +310,7 @@ def search_sold():
 @limiter.limit(config.rate_limit_search)
 def search_active():
     """
-    Search for active eBay listings.
+    [Legacy] Search for active eBay listings via Finding API.
 
     Query params:
         q: Search keywords (required)
@@ -229,7 +338,7 @@ def search_active():
 @limiter.limit(config.rate_limit_search)
 def compare_prices_endpoint():
     """
-    Compare sold vs active prices for the same search.
+    [Legacy] Compare sold vs active prices via Finding API.
 
     Query params:
         q: Search keywords (required)
@@ -298,6 +407,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "ebay_configured": config.is_ebay_configured,
+        "browse_api_configured": browse_service is not None,
     })
 
 
@@ -316,6 +426,7 @@ def config_status():
         "summary": {
             "all_configured": all(c["configured"] for c in credentials.values()),
             "ebay_ready": config.is_ebay_configured,
+            "browse_api_ready": browse_service is not None,
             "configured_count": sum(1 for c in credentials.values() if c["configured"]),
             "total_count": len(credentials),
         },
