@@ -33,9 +33,9 @@ class Config:
     ebay_cert_id: str | None
     ebay_oauth_token: str | None
 
-    # API endpoints
+    # API endpoints (auto-set based on sandbox detection)
     ebay_finding_api: str = "https://svcs.ebay.com/services/search/FindingService/v1"
-    ebay_browse_api: str = "https://api.ebay.com/buy/browse/v1"
+    ebay_browse_api: str = "https://api.ebay.com/buy/browse/v1/item_summary/search"
     ebay_token_endpoint: str = "https://api.ebay.com/identity/v1/oauth2/token"
 
     # Browse API defaults
@@ -56,11 +56,23 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
+        app_id = os.environ.get("EBAY_APP_ID")
+        is_sandbox = bool(app_id and "SBX" in app_id.upper())
+
+        if is_sandbox:
+            browse_api = "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search"
+            token_endpoint = "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
+        else:
+            browse_api = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+            token_endpoint = "https://api.ebay.com/identity/v1/oauth2/token"
+
         return cls(
-            ebay_app_id=os.environ.get("EBAY_APP_ID"),
+            ebay_app_id=app_id,
             ebay_cert_id=os.environ.get("EBAY_CERT_ID"),
             ebay_oauth_token=os.environ.get("EBAY_OAUTH_TOKEN"),
             default_marketplace=os.environ.get("DEFAULT_MARKETPLACE", "EBAY_GB"),
+            ebay_browse_api=browse_api,
+            ebay_token_endpoint=token_endpoint,
         )
 
     @property

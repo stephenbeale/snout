@@ -19,12 +19,12 @@ class AuthError(Exception):
 class EbayAuthService:
     """Manages OAuth client_credentials tokens for eBay Browse API."""
 
-    TOKEN_ENDPOINT = "https://api.ebay.com/identity/v1/oauth2/token"
     TOKEN_LIFETIME = 7200  # 2 hours
 
-    def __init__(self, app_id: str, cert_id: str):
+    def __init__(self, app_id: str, cert_id: str, token_endpoint: str = "https://api.ebay.com/identity/v1/oauth2/token"):
         self._app_id = app_id
         self._cert_id = cert_id
+        self._token_endpoint = token_endpoint
         self._token: str | None = None
         self._expires_at: float = 0
         self._session = requests.Session()
@@ -62,7 +62,7 @@ class EbayAuthService:
 
         try:
             response = self._session.post(
-                self.TOKEN_ENDPOINT,
+                self._token_endpoint,
                 headers=headers,
                 data=data,
                 timeout=10,

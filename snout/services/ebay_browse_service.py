@@ -51,8 +51,6 @@ class BrowseApiError(Exception):
 class EbayBrowseService:
     """Service for eBay Browse API item_summary/search."""
 
-    SEARCH_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search"
-
     def __init__(self, config: Config, auth_service: EbayAuthService):
         self._config = config
         self._auth = auth_service
@@ -114,7 +112,7 @@ class EbayBrowseService:
         logger.debug("Browse API request: q=%s, params=%s", query.keywords, params)
 
         response = self._session.get(
-            self.SEARCH_ENDPOINT,
+            self._config.ebay_browse_api,
             headers=headers,
             params=params,
             timeout=self._config.request_timeout,

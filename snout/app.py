@@ -44,7 +44,7 @@ ebay_service = EbayFindingService(config)
 # Initialize Browse API service (requires both app_id and cert_id)
 browse_service = None
 if config.ebay_app_id and config.ebay_cert_id:
-    auth_service = EbayAuthService(config.ebay_app_id, config.ebay_cert_id)
+    auth_service = EbayAuthService(config.ebay_app_id, config.ebay_cert_id, config.ebay_token_endpoint)
     browse_service = EbayBrowseService(config, auth_service)
 
 
