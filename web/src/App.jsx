@@ -26,9 +26,10 @@ export default function App() {
 
   const handleLoadFilter = (preset) => {
     const loaded = load(preset);
-    setKeywords(loaded.keywords);
+    if (loaded.keywords) setKeywords(loaded.keywords);
     setFilters(loaded.filters);
-    search(loaded.keywords, loaded.filters);
+    const searchKeywords = loaded.keywords || keywords;
+    if (searchKeywords.trim()) search(searchKeywords, loaded.filters);
     setTab("search");
   };
 

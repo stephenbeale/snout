@@ -8,7 +8,8 @@ eBay price analysis PWA for UK sellers. Search active listings, compare prices, 
 - **Sticky filters** — all filter settings persist in localStorage across searches and sessions
 - **Price stats** — average, median, min, max across results (total price including P&P)
 - **Item cards** — image, title, item price + shipping breakdown, condition badge, direct eBay link
-- **Saved filters** — save and reload search presets (localStorage)
+- **Built-in presets** — one-tap quick modes: Competition (UK BIN cheapest first), Auctions (ending soonest), New Items (freshly listed)
+- **Saved filters** — save and reload custom search presets (localStorage)
 - **PWA** — installable, works offline (cached shell), mobile-first dark UI
 - **Fee calculator** — UK eBay fees (12.8% + 30p) and profit estimation
 
@@ -88,6 +89,6 @@ Frontend deploys automatically to GitHub Pages on push to `master` (changes in `
 See [ROADMAP.md](ROADMAP.md) for the full roadmap.
 
 - [x] Sticky filters + listing type + UK only
-- [ ] Default search presets (Competition mode, custom presets)
+- [x] Built-in search presets (Competition, Auctions, New Items)
 - [ ] Sales tracking UI + manual entry
 - [ ] eBay OAuth (Fulfillment API for order history, Finances API for fees)
