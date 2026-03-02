@@ -29,3 +29,6 @@ web/dist/
 
 # Project specific
 *.log
+# Claude Code local settings
+.claude/settings.local.json
+
