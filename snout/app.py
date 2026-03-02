@@ -10,7 +10,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from .config import BROWSE_CONDITION_MAP, BROWSE_SORT_MAP, CONDITION_MAP, SORT_MAP, Config, setup_logging
+from .config import BROWSE_BUYING_OPTIONS_MAP, BROWSE_CONDITION_MAP, BROWSE_SORT_MAP, CONDITION_MAP, SORT_MAP, Config, setup_logging
 from .services import EbayFindingService, calculate_price_stats
 from .services.auth_service import AuthError, EbayAuthService
 from .services.ebay_browse_service import BrowseApiError, BrowseSearchQuery, EbayBrowseService
@@ -54,6 +54,8 @@ def parse_filter_params() -> dict:
     min_price = request.args.get("min_price", type=float)
     max_price = request.args.get("max_price", type=float)
     sort = request.args.get("sort")
+    listing_type = request.args.get("listing_type")
+    uk_only = request.args.get("uk_only", "").lower() == "true"
 
     # Validate prices
     min_price = validate_price(min_price, "min_price")
@@ -64,6 +66,8 @@ def parse_filter_params() -> dict:
         "min_price": min_price,
         "max_price": max_price,
         "sort": sort,
+        "listing_type": listing_type,
+        "uk_only": uk_only,
     }
 
 
@@ -72,6 +76,8 @@ def build_filters_response(
     min_price: float | None,
     max_price: float | None,
     sort: str | None = None,
+    listing_type: str | None = None,
+    uk_only: bool = False,
 ) -> dict | None:
     """Build filters dict for response."""
     filters = {}
@@ -83,6 +89,10 @@ def build_filters_response(
         filters["max_price"] = max_price
     if sort:
         filters["sort"] = sort
+    if listing_type:
+        filters["listing_type"] = listing_type
+    if uk_only:
+        filters["uk_only"] = uk_only
     return filters if filters else None
 
 
@@ -190,6 +200,8 @@ def api_search():
         min_price: Minimum price filter
         max_price: Maximum price filter
         sort: Sort order (best_match, price_asc, price_desc, date_asc, date_desc)
+        listing_type: Filter by listing type (buy_it_now, auction)
+        uk_only: Restrict to UK sellers (true/false)
         limit: Results per page (default 50, max 200)
         offset: Pagination offset (default 0)
     """
@@ -213,6 +225,8 @@ def api_search():
         min_price=filters["min_price"],
         max_price=filters["max_price"],
         sort=filters["sort"],
+        listing_type=filters["listing_type"],
+        uk_only=filters["uk_only"],
         marketplace=config.default_marketplace,
         limit=limit,
         offset=offset,
@@ -241,6 +255,8 @@ def api_search():
             filters["min_price"],
             filters["max_price"],
             filters["sort"],
+            filters["listing_type"],
+            filters["uk_only"],
         ),
         "stats": stats,
         "items": browse_items_to_dicts(items),
@@ -273,6 +289,8 @@ def index():
             "condition": list(BROWSE_CONDITION_MAP.keys()),
             "min_price": "Minimum price (float)",
             "max_price": "Maximum price (float)",
+            "listing_type": list(BROWSE_BUYING_OPTIONS_MAP.keys()),
+            "uk_only": "Restrict to UK sellers (true/false)",
         },
         "sort_options": list(BROWSE_SORT_MAP.keys()),
     })

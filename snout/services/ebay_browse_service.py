@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from ..config import BROWSE_CONDITION_MAP, BROWSE_SORT_MAP, Config
+from ..config import BROWSE_BUYING_OPTIONS_MAP, BROWSE_CONDITION_MAP, BROWSE_SORT_MAP, Config
 from .auth_service import EbayAuthService
 
 logger = logging.getLogger("snout.browse")
@@ -22,6 +22,8 @@ class BrowseSearchQuery:
     min_price: float | None = None
     max_price: float | None = None
     sort: str | None = None
+    listing_type: str | None = None
+    uk_only: bool = False
     marketplace: str = "EBAY_GB"
     limit: int = 50
     offset: int = 0
@@ -101,6 +103,12 @@ class EbayBrowseService:
             filters.append(f"price:[{query.min_price}..],priceCurrency:GBP")
         if query.max_price is not None:
             filters.append(f"price:[..{query.max_price}],priceCurrency:GBP")
+        if query.listing_type and query.listing_type.lower() in BROWSE_BUYING_OPTIONS_MAP:
+            filters.append(
+                f"buyingOptions:{{{BROWSE_BUYING_OPTIONS_MAP[query.listing_type.lower()]}}}"
+            )
+        if query.uk_only:
+            filters.append("itemLocationCountry:GB")
 
         if filters:
             params["filter"] = ",".join(filters)

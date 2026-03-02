@@ -7,16 +7,13 @@ import SearchResults from "./components/SearchResults";
 import SavedFilters from "./components/SavedFilters";
 import { useSearch } from "./hooks/useSearch";
 import { useSavedFilters } from "./hooks/useSavedFilters";
+import { useLocalStorage } from "./hooks/useLocalStorage";
+import { DEFAULT_FILTERS } from "./utils/constants";
 
 export default function App() {
   const [tab, setTab] = useState("search");
   const [keywords, setKeywords] = useState("");
-  const [filters, setFilters] = useState({
-    condition: null,
-    minPrice: "",
-    maxPrice: "",
-    sort: "best_match",
-  });
+  const [filters, setFilters] = useLocalStorage("snout-filters", DEFAULT_FILTERS);
 
   const { results, stats, pagination, loading, error, search, loadMore } =
     useSearch();

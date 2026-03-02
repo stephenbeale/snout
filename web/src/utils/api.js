@@ -7,6 +7,8 @@ export async function searchItems(keywords, filters = {}, offset = 0) {
   if (filters.minPrice) params.set("min_price", filters.minPrice);
   if (filters.maxPrice) params.set("max_price", filters.maxPrice);
   if (filters.sort) params.set("sort", filters.sort);
+  if (filters.listingType) params.set("listing_type", filters.listingType);
+  if (filters.ukOnly) params.set("uk_only", "true");
   if (offset > 0) params.set("offset", String(offset));
 
   const response = await fetch(`${API_URL}/api/search?${params}`);

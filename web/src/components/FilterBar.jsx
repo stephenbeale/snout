@@ -1,11 +1,38 @@
-import { CONDITIONS, SORT_OPTIONS } from "../utils/constants";
+import { CONDITIONS, SORT_OPTIONS, LISTING_TYPES, DEFAULT_FILTERS } from "../utils/constants";
 
 export default function FilterBar({ filters, onChange }) {
   const update = (key, value) => onChange({ ...filters, [key]: value });
 
+  const hasActiveFilters =
+    filters.condition !== null ||
+    filters.minPrice !== "" ||
+    filters.maxPrice !== "" ||
+    filters.sort !== "best_match" ||
+    filters.listingType !== null ||
+    filters.ukOnly === true;
+
+  const clearAll = () => onChange({ ...DEFAULT_FILTERS });
+
+  const activeLabels = [];
+  if (filters.condition) {
+    const c = CONDITIONS.find((x) => x.value === filters.condition);
+    activeLabels.push(c ? c.label : filters.condition);
+  }
+  if (filters.listingType) {
+    const lt = LISTING_TYPES.find((x) => x.value === filters.listingType);
+    activeLabels.push(lt ? lt.label : filters.listingType);
+  }
+  if (filters.ukOnly) activeLabels.push("UK Only");
+  if (filters.minPrice) activeLabels.push(`Min £${filters.minPrice}`);
+  if (filters.maxPrice) activeLabels.push(`Max £${filters.maxPrice}`);
+  if (filters.sort && filters.sort !== "best_match") {
+    const s = SORT_OPTIONS.find((x) => x.value === filters.sort);
+    activeLabels.push(s ? s.label : filters.sort);
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Condition pills */}
+      {/* Row 1: Condition pills */}
       <div className="flex flex-wrap gap-1.5">
         <button
           onClick={() => update("condition", null)}
@@ -34,7 +61,48 @@ export default function FilterBar({ filters, onChange }) {
         ))}
       </div>
 
-      {/* Price range + sort */}
+      {/* Row 2: Listing type pills + UK Only toggle */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => update("listingType", null)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            !filters.listingType
+              ? "bg-amber-500 text-slate-900"
+              : "bg-slate-800 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          Any Type
+        </button>
+        {LISTING_TYPES.map((lt) => (
+          <button
+            key={lt.value}
+            onClick={() =>
+              update("listingType", filters.listingType === lt.value ? null : lt.value)
+            }
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              filters.listingType === lt.value
+                ? "bg-amber-500 text-slate-900"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {lt.label}
+          </button>
+        ))}
+        <div className="ml-auto">
+          <button
+            onClick={() => update("ukOnly", !filters.ukOnly)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              filters.ukOnly
+                ? "bg-emerald-500 text-white"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            UK Only
+          </button>
+        </div>
+      </div>
+
+      {/* Row 3: Price range + sort */}
       <div className="flex gap-2">
         <input
           type="number"
@@ -66,6 +134,26 @@ export default function FilterBar({ filters, onChange }) {
           ))}
         </select>
       </div>
+
+      {/* Row 4: Active filter summary + Clear All */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeLabels.map((label) => (
+            <span
+              key={label}
+              className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs text-slate-300"
+            >
+              {label}
+            </span>
+          ))}
+          <button
+            onClick={clearAll}
+            className="ml-auto rounded-full bg-red-900/60 px-3 py-0.5 text-xs font-medium text-red-300 transition-colors hover:bg-red-900"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
     </div>
   );
 }
