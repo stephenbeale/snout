@@ -27,3 +27,21 @@ export const DEFAULT_FILTERS = {
   listingType: null,
   ukOnly: false,
 };
+
+export const BUILT_IN_PRESETS = [
+  {
+    name: "Competition",
+    description: "UK Buy It Now, cheapest first",
+    filters: { ...DEFAULT_FILTERS, listingType: "buy_it_now", ukOnly: true, sort: "price_asc" },
+  },
+  {
+    name: "Auctions",
+    description: "Ending soonest auctions",
+    filters: { ...DEFAULT_FILTERS, listingType: "auction", sort: "date_asc" },
+  },
+  {
+    name: "New Items",
+    description: "Newest listed, new condition",
+    filters: { ...DEFAULT_FILTERS, condition: "new", sort: "date_desc" },
+  },
+];

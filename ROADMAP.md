@@ -9,10 +9,8 @@
 
 ## Planned
 
-- [ ] **Default search presets** — quick-switch modes:
-  - "Sold Prices" mode (blocked — Browse API can't search sold; needs future API support)
-  - "Competition" mode — live BIN + UK Only + price+P&P sorted
-  - Custom user presets with save/load
+- [x] **Default search presets** — built-in quick modes (Competition, Auctions, New Items) + custom user presets with save/load
+  - "Sold Prices" mode blocked — Browse API can't search completed listings
 - [ ] **Phase 2: Sales tracking** — manual entry UI, profit calculations, sales history
 - [ ] **Phase 3: eBay OAuth** — Fulfillment API for order history, Finances API for actual fee data
 
