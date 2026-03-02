@@ -1,4 +1,5 @@
 import { useLocalStorage } from "./useLocalStorage";
+import { DEFAULT_FILTERS } from "../utils/constants";
 
 export function useSavedFilters() {
   const [saved, setSaved] = useLocalStorage("snout-saved-filters", []);
@@ -16,7 +17,7 @@ export function useSavedFilters() {
 
   const load = (preset) => ({
     keywords: preset.keywords,
-    filters: preset.filters,
+    filters: { ...DEFAULT_FILTERS, ...preset.filters },
   });
 
   return { saved, save, remove, load };

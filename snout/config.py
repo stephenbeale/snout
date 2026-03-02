@@ -153,6 +153,12 @@ BROWSE_SORT_MAP = {
     "date_desc": "newlyListed",
 }
 
+# Browse API buying options mapping
+BROWSE_BUYING_OPTIONS_MAP = {
+    "buy_it_now": "FIXED_PRICE",
+    "auction": "AUCTION",
+}
+
 
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
     """Configure application logging."""

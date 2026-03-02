@@ -13,3 +13,17 @@ export const SORT_OPTIONS = [
   { value: "date_asc", label: "Ending Soon" },
   { value: "date_desc", label: "Newest" },
 ];
+
+export const LISTING_TYPES = [
+  { value: "buy_it_now", label: "Buy It Now" },
+  { value: "auction", label: "Auction" },
+];
+
+export const DEFAULT_FILTERS = {
+  condition: null,
+  minPrice: "",
+  maxPrice: "",
+  sort: "best_match",
+  listingType: null,
+  ukOnly: false,
+};
