@@ -15,7 +15,19 @@ export default function Layout({ children, tab, onTabChange }) {
       </header>
 
       {/* Content */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-16">{children}</main>
+
+      {/* Footer */}
+      <div className="fixed bottom-[49px] left-0 right-0 z-10 border-t border-slate-800 bg-slate-900/95 backdrop-blur px-4 py-1.5 text-center text-[0.65rem] text-slate-600">
+        <a
+          href="https://buymeacoffee.com/stephenbeale"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-500 hover:text-amber-400 transition-colors"
+        >
+          Buy me a coffee
+        </a>
+      </div>
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-800 bg-slate-900/95 backdrop-blur">
