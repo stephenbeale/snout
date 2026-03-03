@@ -8,6 +8,7 @@ import SavedFilters from "./components/SavedFilters";
 import { useSearch } from "./hooks/useSearch";
 import { useSavedFilters } from "./hooks/useSavedFilters";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import SalesTab from "./components/SalesTab";
 import { DEFAULT_FILTERS } from "./utils/constants";
 
 export default function App() {
@@ -70,15 +71,7 @@ export default function App() {
           />
         </div>
       )}
-      {tab === "sales" && (
-        <div className="flex items-center justify-center p-8 pb-20 text-slate-500">
-          <p className="text-center">
-            Sales tracking coming soon.
-            <br />
-            <span className="text-xs">Phase 2</span>
-          </p>
-        </div>
-      )}
+      {tab === "sales" && <SalesTab />}
     </Layout>
   );
 }
