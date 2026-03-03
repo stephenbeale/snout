@@ -9,7 +9,8 @@ export default function FilterBar({ filters, onChange }) {
     filters.maxPrice !== "" ||
     filters.sort !== "best_match" ||
     filters.listingType !== null ||
-    filters.ukOnly === true;
+    filters.ukOnly === true ||
+    filters.showSold === true;
 
   const clearAll = () => onChange({ ...DEFAULT_FILTERS });
 
@@ -23,6 +24,7 @@ export default function FilterBar({ filters, onChange }) {
     activeLabels.push(lt ? lt.label : filters.listingType);
   }
   if (filters.ukOnly) activeLabels.push("UK Only");
+  if (filters.showSold) activeLabels.push("Sold Items");
   if (filters.minPrice) activeLabels.push(`Min £${filters.minPrice}`);
   if (filters.maxPrice) activeLabels.push(`Max £${filters.maxPrice}`);
   if (filters.sort && filters.sort !== "best_match") {
@@ -88,7 +90,18 @@ export default function FilterBar({ filters, onChange }) {
             {lt.label}
           </button>
         ))}
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-1.5">
+          <button
+            onClick={() => update("showSold", !filters.showSold)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              filters.showSold
+                ? "bg-violet-600 text-white"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+            title="Search completed/sold listings via legacy API — may be unavailable"
+          >
+            Sold Items
+          </button>
           <button
             onClick={() => update("ukOnly", !filters.ukOnly)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
@@ -101,6 +114,13 @@ export default function FilterBar({ filters, onChange }) {
           </button>
         </div>
       </div>
+
+      {/* Sold items notice */}
+      {filters.showSold && (
+        <p className="text-xs text-violet-400/80">
+          Showing sold listings — listing type and UK Only filters do not apply. Results may be limited.
+        </p>
+      )}
 
       {/* Row 3: Price range + sort */}
       <div className="flex gap-2">
