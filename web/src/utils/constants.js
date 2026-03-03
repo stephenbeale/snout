@@ -26,6 +26,7 @@ export const DEFAULT_FILTERS = {
   sort: "best_match",
   listingType: null,
   ukOnly: false,
+  showSold: false,
 };
 
 export const BUILT_IN_PRESETS = [
