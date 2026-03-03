@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 
-const today = () => new Date().toISOString().split("T")[0];
+const today = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 export default function SaleForm({ initial, onSave, onCancel }) {
   const [title, setTitle] = useState("");
@@ -19,15 +25,26 @@ export default function SaleForm({ initial, onSave, onCancel }) {
     }
   }, [initial]);
 
-  const canSave = title.trim() && costPrice && salePrice;
+  const parsedCost = Number(costPrice);
+  const parsedSale = Number(salePrice);
+  const parsedPostage = postage === "" ? 0 : Number(postage);
+  const canSave =
+    title.trim().length > 0 &&
+    Number.isFinite(parsedCost) &&
+    parsedCost >= 0 &&
+    Number.isFinite(parsedSale) &&
+    parsedSale >= 0 &&
+    Number.isFinite(parsedPostage) &&
+    parsedPostage >= 0 &&
+    Boolean(date);
 
   const handleSave = () => {
     if (!canSave) return;
     onSave({
       title: title.trim(),
-      costPrice: parseFloat(costPrice),
-      salePrice: parseFloat(salePrice),
-      postage: parseFloat(postage) || 0,
+      costPrice: parsedCost,
+      salePrice: parsedSale,
+      postage: parsedPostage,
       date,
     });
   };
@@ -39,6 +56,7 @@ export default function SaleForm({ initial, onSave, onCancel }) {
     <div className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800/80 p-4">
       <input
         type="text"
+        aria-label="Item title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Item title..."
@@ -47,6 +65,7 @@ export default function SaleForm({ initial, onSave, onCancel }) {
       <div className="grid grid-cols-2 gap-3">
         <input
           type="number"
+          aria-label="Cost price"
           value={costPrice}
           onChange={(e) => setCostPrice(e.target.value)}
           placeholder="Cost price"
@@ -56,6 +75,7 @@ export default function SaleForm({ initial, onSave, onCancel }) {
         />
         <input
           type="number"
+          aria-label="Sale price"
           value={salePrice}
           onChange={(e) => setSalePrice(e.target.value)}
           placeholder="Sale price"
@@ -65,6 +85,7 @@ export default function SaleForm({ initial, onSave, onCancel }) {
         />
         <input
           type="number"
+          aria-label="Postage"
           value={postage}
           onChange={(e) => setPostage(e.target.value)}
           placeholder="Postage"
@@ -74,6 +95,7 @@ export default function SaleForm({ initial, onSave, onCancel }) {
         />
         <input
           type="date"
+          aria-label="Sale date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           className={inputClass}

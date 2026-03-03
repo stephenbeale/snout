@@ -1,7 +1,7 @@
 import { calculateFees, calculateProfit } from "../utils/fees";
 import { formatGBP, formatDate } from "../utils/formatters";
 
-export default function SaleCard({ sale, onEdit, onDelete }) {
+export default function SaleCard({ sale, armed, onEdit, onDelete }) {
   const fees = calculateFees(sale.salePrice);
   const profit = calculateProfit(sale.salePrice, sale.costPrice, sale.postage);
   const profitColor = profit >= 0 ? "text-green-400" : "text-red-400";
@@ -25,8 +25,8 @@ export default function SaleCard({ sale, onEdit, onDelete }) {
           </button>
           <button
             onClick={() => onDelete(sale.id)}
-            className="rounded p-1 text-slate-500 hover:text-red-400"
-            aria-label="Delete sale"
+            className={`rounded p-1 transition-colors ${armed ? "text-red-400 animate-pulse" : "text-slate-500 hover:text-red-400"}`}
+            aria-label={armed ? "Confirm delete" : "Delete sale"}
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -1,6 +1,6 @@
 import SaleCard from "./SaleCard";
 
-export default function SaleList({ sales, onEdit, onDelete }) {
+export default function SaleList({ sales, armed, onEdit, onDelete }) {
   if (sales.length === 0) {
     return (
       <p className="text-center text-sm text-slate-600">
@@ -15,6 +15,7 @@ export default function SaleList({ sales, onEdit, onDelete }) {
         <SaleCard
           key={sale.id}
           sale={sale}
+          armed={armed === sale.id}
           onEdit={onEdit}
           onDelete={onDelete}
         />

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSales } from "../hooks/useSales";
 import SaleForm from "./SaleForm";
 import SaleSummary from "./SaleSummary";
@@ -9,6 +9,12 @@ export default function SalesTab() {
   const [editing, setEditing] = useState(null); // null | "new" | sale object
   const [armed, setArmed] = useState(null);
   const armedTimer = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (armedTimer.current) clearTimeout(armedTimer.current);
+    };
+  }, []);
 
   const handleSave = (data) => {
     if (editing && editing !== "new") {
@@ -54,6 +60,7 @@ export default function SalesTab() {
 
       <SaleList
         sales={sales}
+        armed={armed}
         onEdit={(sale) => setEditing(sale)}
         onDelete={handleDelete}
       />
