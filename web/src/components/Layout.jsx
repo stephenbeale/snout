@@ -27,6 +27,17 @@ export default function Layout({ children, tab, onTabChange }) {
         >
           Buy me a coffee
         </a>
+        <span className="mx-1.5 text-slate-700">|</span>
+        Finding good deals? Earn cashback with{" "}
+        <a
+          href="QUIDCO_REFERRAL_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-slate-500 hover:text-amber-400 transition-colors"
+        >
+          Quidco
+        </a>
+        <span className="ml-1 text-slate-600/60 text-[0.55rem]">(referral link)</span>
       </div>
 
       {/* Bottom nav */}
