@@ -16,7 +16,7 @@ export default function App() {
   const [keywords, setKeywords] = useState("");
   const [filters, setFilters] = useLocalStorage("snout-filters", DEFAULT_FILTERS);
 
-  const { results, stats, pagination, loading, error, search, loadMore } =
+  const { results, stats, market, pagination, loading, error, search, loadMore } =
     useSearch();
   const { saved, save, remove, load } = useSavedFilters();
 
@@ -55,6 +55,7 @@ export default function App() {
             items={results}
             loading={loading}
             pagination={pagination}
+            market={market}
             onLoadMore={() => loadMore(keywords, filters)}
           />
         </div>

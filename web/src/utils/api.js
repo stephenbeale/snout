@@ -1,5 +1,16 @@
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+export async function searchSoldCount(keywords) {
+  const params = new URLSearchParams({ q: keywords });
+  const response = await fetch(`${API_URL}/search/sold?${params}`);
+  if (!response.ok) return null;
+  const data = await response.json();
+  return {
+    soldCount: data.stats?.count || 0,
+    soldAvg: data.stats?.average || 0,
+  };
+}
+
 export async function searchItems(keywords, filters = {}, offset = 0) {
   const params = new URLSearchParams({ q: keywords });
 
