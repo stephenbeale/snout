@@ -20,7 +20,7 @@ const MOCK_STATS = {
 
 const MOCK_MARKET = { activeCount: 47, soldCount: 83, soldAvg: 201.50 };
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export function useSearch() {
   const [results, setResults] = useState(USE_MOCK ? MOCK_ITEMS : []);

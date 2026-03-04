@@ -4,8 +4,13 @@ Snout - eBay Reseller Price Lookup API
 import logging
 import os
 from dataclasses import asdict
+from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+
+# Load .env from snout/ directory
+load_dotenv(Path(__file__).parent / ".env", override=True)
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
