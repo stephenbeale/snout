@@ -52,6 +52,7 @@ class Config:
     # Rate limiting
     rate_limit_default: str = "100 per minute"
     rate_limit_search: str = "30 per minute"
+    rate_limit_browse: str = "20 per minute"
 
     @classmethod
     def from_env(cls) -> "Config":
