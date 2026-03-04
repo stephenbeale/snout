@@ -1,6 +1,7 @@
 """
 Snout - eBay Reseller Price Lookup API
 """
+import functools
 import logging
 import os
 from dataclasses import asdict
@@ -33,7 +34,11 @@ config = Config.from_env()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    "https://stephenbeale.github.io",
+    "http://localhost:5173",
+    "http://localhost:5174",
+])
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -43,6 +48,9 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+# API key for request authentication
+SNOUT_API_KEY = os.environ.get("SNOUT_API_KEY")
+
 # Initialize eBay services
 ebay_service = EbayFindingService(config)
 
@@ -51,6 +59,25 @@ browse_service = None
 if config.ebay_app_id and config.ebay_cert_id:
     auth_service = EbayAuthService(config.ebay_app_id, config.ebay_cert_id, config.ebay_token_endpoint)
     browse_service = EbayBrowseService(config, auth_service)
+
+
+def require_api_key(f):
+    """Decorator that rejects requests missing a valid X-Snout-Key header."""
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if SNOUT_API_KEY:
+            key = request.headers.get("X-Snout-Key")
+            if key != SNOUT_API_KEY:
+                logger.warning("Rejected request: invalid API key from %s", request.remote_addr)
+                return jsonify({"error": "Unauthorized — invalid or missing API key"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.errorhandler(429)
+def handle_rate_limit(e):
+    """Return JSON for rate-limit errors instead of HTML."""
+    return jsonify({"error": "Rate limit exceeded", "retry_after": e.description}), 429
 
 
 def parse_filter_params() -> dict:
@@ -194,7 +221,8 @@ def handle_auth_error(error: AuthError):
 # ─── Browse API endpoint (new) ──────────────────────────────────────────────
 
 @app.route("/api/search")
-@limiter.limit(config.rate_limit_search)
+@limiter.limit(config.rate_limit_browse)
+@require_api_key
 def api_search():
     """
     Search active eBay listings via Browse API.
@@ -222,7 +250,7 @@ def api_search():
     limit = min(request.args.get("limit", 50, type=int), 200)
     offset = request.args.get("offset", 0, type=int)
 
-    logger.info("Browse search: keywords=%s, filters=%s", keywords, filters)
+    logger.info("Browse search: ip=%s, keywords=%s, filters=%s", request.remote_addr, keywords, filters)
 
     query = BrowseSearchQuery(
         keywords=keywords,
@@ -303,6 +331,7 @@ def index():
 
 @app.route("/search/sold")
 @limiter.limit(config.rate_limit_search)
+@require_api_key
 def search_sold():
     """
     [Legacy] Search for sold/completed eBay listings via Finding API.
@@ -323,7 +352,7 @@ def search_sold():
         return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
-    logger.info("Search sold: keywords=%s, filters=%s", keywords, filters)
+    logger.info("Search sold: ip=%s, keywords=%s, filters=%s", request.remote_addr, keywords, filters)
 
     response, status = execute_search(keywords, sold=True, filters=filters)
     return jsonify(response), status
@@ -331,6 +360,7 @@ def search_sold():
 
 @app.route("/search/active")
 @limiter.limit(config.rate_limit_search)
+@require_api_key
 def search_active():
     """
     [Legacy] Search for active eBay listings via Finding API.
@@ -351,7 +381,7 @@ def search_active():
         return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
-    logger.info("Search active: keywords=%s, filters=%s", keywords, filters)
+    logger.info("Search active: ip=%s, keywords=%s, filters=%s", request.remote_addr, keywords, filters)
 
     response, status = execute_search(keywords, sold=False, filters=filters)
     return jsonify(response), status
@@ -359,6 +389,7 @@ def search_active():
 
 @app.route("/search/compare")
 @limiter.limit(config.rate_limit_search)
+@require_api_key
 def compare_prices_endpoint():
     """
     [Legacy] Compare sold vs active prices via Finding API.
@@ -378,7 +409,7 @@ def compare_prices_endpoint():
         return jsonify({"error": "eBay API not configured"}), 500
 
     filters = parse_filter_params()
-    logger.info("Compare prices: keywords=%s, filters=%s", keywords, filters)
+    logger.info("Compare prices: ip=%s, keywords=%s, filters=%s", request.remote_addr, keywords, filters)
 
     # Build queries for concurrent execution
     sold_query = SearchQuery(
