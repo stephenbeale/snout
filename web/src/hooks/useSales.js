@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useLocalStorage } from "./useLocalStorage";
-import { calculateProfit } from "../utils/fees";
+import { calculateProfit, applyTax } from "../utils/fees";
 
-export function useSales() {
+export function useSales(includeTax = false) {
   const [sales, setSales] = useLocalStorage("snout-sales", []);
 
   const sorted = useMemo(
@@ -29,8 +29,8 @@ export function useSales() {
     let totalProfit = 0;
     let totalRevenue = 0;
     for (const s of sorted) {
-      const profit = calculateProfit(s.salePrice, s.costPrice, s.postage);
-      totalProfit += profit;
+      const rawProfit = calculateProfit(s.salePrice, s.costPrice, s.postage);
+      totalProfit += includeTax ? applyTax(rawProfit) : rawProfit;
       totalRevenue += s.salePrice;
     }
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
@@ -40,7 +40,7 @@ export function useSales() {
       count: sorted.length,
       avgMargin: Math.round(avgMargin * 10) / 10,
     };
-  }, [sorted]);
+  }, [sorted, includeTax]);
 
   return { sales: sorted, stats, addSale, updateSale, removeSale };
 }

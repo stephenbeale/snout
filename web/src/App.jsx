@@ -13,6 +13,7 @@ import { DEFAULT_FILTERS } from "./utils/constants";
 
 export default function App() {
   const [tab, setTab] = useState("search");
+  const [includeTax, setIncludeTax] = useLocalStorage("snout-include-tax", false);
   const [keywords, setKeywords] = useState("");
   const [filters, setFilters] = useLocalStorage("snout-filters", DEFAULT_FILTERS);
 
@@ -56,6 +57,7 @@ export default function App() {
             loading={loading}
             pagination={pagination}
             market={market}
+            includeTax={includeTax}
             onLoadMore={() => loadMore(keywords, filters)}
           />
         </div>
@@ -72,7 +74,9 @@ export default function App() {
           />
         </div>
       )}
-      {tab === "sales" && <SalesTab />}
+      {tab === "sales" && (
+        <SalesTab includeTax={includeTax} onToggleTax={setIncludeTax} />
+      )}
     </Layout>
   );
 }
