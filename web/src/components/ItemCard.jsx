@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { formatGBP } from "../utils/formatters";
-import { calculateProfit, calculateFees } from "../utils/fees";
+import { calculateProfit, calculateFees, applyTax } from "../utils/fees";
 
 function estimateTimeToSell(market) {
   if (!market) return null;
@@ -29,14 +29,15 @@ function estimateTimeToSell(market) {
   return { label: "Slow sell", bg: "bg-orange-500/20 text-orange-400" };
 }
 
-export default function ItemCard({ item, market }) {
+export default function ItemCard({ item, market, includeTax }) {
   const hasShipping = item.shipping_cost > 0;
   const [showCalc, setShowCalc] = useState(false);
   const [costInput, setCostInput] = useState("");
   const inputRef = useRef(null);
 
   const costPrice = parseFloat(costInput) || 0;
-  const profit = calculateProfit(item.total_price, costPrice);
+  const rawProfit = calculateProfit(item.total_price, costPrice);
+  const profit = includeTax ? applyTax(rawProfit) : rawProfit;
   const fees = calculateFees(item.total_price);
   const hasResult = costInput !== "";
   const sellEstimate = estimateTimeToSell(market);

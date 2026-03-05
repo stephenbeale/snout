@@ -21,6 +21,16 @@ export function calculateProfit(
   return round(salePrice - costPrice - fees - postageCost);
 }
 
+const TAX_RATE = 0.2; // 20% UK income tax
+
+/**
+ * Deduct tax from profit (only on positive profit).
+ */
+export function applyTax(profit) {
+  if (profit <= 0) return profit;
+  return round(profit * (1 - TAX_RATE));
+}
+
 function round(n) {
   return Math.round(n * 100) / 100;
 }

@@ -4,8 +4,8 @@ import SaleForm from "./SaleForm";
 import SaleSummary from "./SaleSummary";
 import SaleList from "./SaleList";
 
-export default function SalesTab() {
-  const { sales, stats, addSale, updateSale, removeSale } = useSales();
+export default function SalesTab({ includeTax, onToggleTax }) {
+  const { sales, stats, addSale, updateSale, removeSale } = useSales(includeTax);
   const [editing, setEditing] = useState(null); // null | "new" | sale object
   const [armed, setArmed] = useState(null);
   const armedTimer = useRef(null);
@@ -58,11 +58,30 @@ export default function SalesTab() {
 
       <SaleSummary stats={stats} />
 
+      <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-800/50 px-3 py-2">
+        <span className="text-xs text-slate-400">Deduct 20% tax on profit</span>
+        <button
+          onClick={() => onToggleTax((v) => !v)}
+          className={`relative h-5 w-9 rounded-full transition-colors ${
+            includeTax ? "bg-amber-500" : "bg-slate-600"
+          }`}
+          role="switch"
+          aria-checked={includeTax}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+              includeTax ? "translate-x-4" : ""
+            }`}
+          />
+        </button>
+      </div>
+
       <SaleList
         sales={sales}
         armed={armed}
         onEdit={(sale) => setEditing(sale)}
         onDelete={handleDelete}
+        includeTax={includeTax}
       />
     </div>
   );

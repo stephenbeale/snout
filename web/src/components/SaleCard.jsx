@@ -1,9 +1,10 @@
-import { calculateFees, calculateProfit } from "../utils/fees";
+import { calculateFees, calculateProfit, applyTax } from "../utils/fees";
 import { formatGBP, formatDate } from "../utils/formatters";
 
-export default function SaleCard({ sale, armed, onEdit, onDelete }) {
+export default function SaleCard({ sale, armed, onEdit, onDelete, includeTax }) {
   const fees = calculateFees(sale.salePrice);
-  const profit = calculateProfit(sale.salePrice, sale.costPrice, sale.postage);
+  const rawProfit = calculateProfit(sale.salePrice, sale.costPrice, sale.postage);
+  const profit = includeTax ? applyTax(rawProfit) : rawProfit;
   const profitColor = profit >= 0 ? "text-green-400" : "text-red-400";
 
   return (
