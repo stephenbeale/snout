@@ -3,16 +3,31 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
+  // Film & TV
   { value: "617", label: "DVDs & Blu-rays" },
   { value: "176984", label: "Blu-ray Discs" },
   { value: "11232", label: "DVDs" },
-  { value: "73160", label: "Video Games" },
-  { value: "11233", label: "VHS Tapes" },
   { value: "175672", label: "4K Ultra HD" },
+  { value: "11233", label: "VHS Tapes" },
+  // Music
   { value: "261186", label: "CDs & Vinyl" },
   { value: "237", label: "Music CDs" },
   { value: "176985", label: "Vinyl Records" },
+  // Games & Consoles
+  { value: "73160", label: "Video Games" },
+  { value: "139971", label: "Video Game Consoles" },
+  { value: "171833", label: "Video Game Accessories" },
+  // Books & Comics
   { value: "267", label: "Books" },
+  { value: "63", label: "Comics & Graphic Novels" },
+  // Electronics
+  { value: "293", label: "Electronics" },
+  { value: "15032", label: "Cameras & Photography" },
+  { value: "3270", label: "Computers & Tablets" },
+  { value: "11071", label: "Mobile Phones" },
+  // Collectables
+  { value: "1", label: "Collectables" },
+  { value: "220", label: "Toys & Games" },
 ];
 
 const CONDITIONS = [
@@ -23,7 +38,7 @@ const CONDITIONS = [
 
 const EBAY_BASE = "https://www.ebay.co.uk/sch/i.html";
 
-function buildEbayUrl({ keywords, category, condition, sold }) {
+function buildEbayUrl({ keywords, category, condition, sold, minPrice, maxPrice, freePostage }) {
   const params = new URLSearchParams();
   params.set("_nkw", keywords);
   if (category) params.set("_sacat", category);
@@ -32,6 +47,9 @@ function buildEbayUrl({ keywords, category, condition, sold }) {
   params.set("LH_PrefLoc", "1");
   if (condition) params.set("LH_ItemCondition", condition);
   if (sold) params.set("LH_Sold", "1");
+  if (minPrice) params.set("_udlo", minPrice);
+  if (maxPrice) params.set("_udhi", maxPrice);
+  if (freePostage) params.set("LH_FS", "1");
   params.set("rt", "nc");
   return `${EBAY_BASE}?${params.toString()}`;
 }
@@ -41,12 +59,15 @@ export default function LinkBuilder() {
   const [category, setCategory] = useLocalStorage("snout-link-category", "617");
   const [condition, setCondition] = useLocalStorage("snout-link-condition", "");
   const [sold, setSold] = useLocalStorage("snout-link-sold", false);
+  const [minPrice, setMinPrice] = useLocalStorage("snout-link-min-price", "");
+  const [maxPrice, setMaxPrice] = useLocalStorage("snout-link-max-price", "");
+  const [freePostage, setFreePostage] = useLocalStorage("snout-link-free-postage", false);
   const [history, setHistory] = useLocalStorage("snout-link-history", []);
 
   const canGenerate = keywords.trim().length > 0;
 
   const url = canGenerate
-    ? buildEbayUrl({ keywords: keywords.trim(), category, condition, sold })
+    ? buildEbayUrl({ keywords: keywords.trim(), category, condition, sold, minPrice, maxPrice, freePostage })
     : "";
 
   const handleOpen = () => {
@@ -57,6 +78,9 @@ export default function LinkBuilder() {
       category,
       condition,
       sold,
+      minPrice,
+      maxPrice,
+      freePostage,
       url,
       ts: Date.now(),
     };
@@ -89,6 +113,9 @@ export default function LinkBuilder() {
     setCategory(entry.category);
     setCondition(entry.condition);
     setSold(entry.sold);
+    setMinPrice(entry.minPrice || "");
+    setMaxPrice(entry.maxPrice || "");
+    setFreePostage(entry.freePostage || false);
   };
 
   const clearHistory = () => setHistory([]);
@@ -156,18 +183,59 @@ export default function LinkBuilder() {
         </div>
       </div>
 
-      {/* Sold toggle */}
-      <button
-        onClick={() => setSold(!sold)}
-        className={`self-start rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-          sold
-            ? "bg-violet-600 text-white"
-            : "bg-slate-800 text-slate-400 hover:text-slate-200"
-        }`}
-        aria-pressed={sold}
-      >
-        Sold Prices
-      </button>
+      {/* Toggles row: Sold + Free P&P */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={() => setSold(!sold)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            sold
+              ? "bg-violet-600 text-white"
+              : "bg-slate-800 text-slate-400 hover:text-slate-200"
+          }`}
+          aria-pressed={sold}
+        >
+          Sold Prices
+        </button>
+        <button
+          onClick={() => setFreePostage(!freePostage)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            freePostage
+              ? "bg-sky-600 text-white"
+              : "bg-slate-800 text-slate-400 hover:text-slate-200"
+          }`}
+          aria-pressed={freePostage}
+        >
+          Free P&P
+        </button>
+      </div>
+
+      {/* Price range */}
+      <div>
+        <span className="mb-1 block text-xs font-medium text-slate-400">Price range</span>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            placeholder="Min"
+            min="0"
+            step="0.01"
+            aria-label="Minimum price"
+            className="w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-2 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500"
+          />
+          <span className="flex items-center text-xs text-slate-600">to</span>
+          <input
+            type="number"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            placeholder="Max"
+            min="0"
+            step="0.01"
+            aria-label="Maximum price"
+            className="w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-2 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500"
+          />
+        </div>
+      </div>
 
       {/* Preset badges */}
       <div className="flex flex-wrap gap-1.5">
@@ -190,6 +258,20 @@ export default function LinkBuilder() {
         {sold && (
           <span className="rounded-full bg-violet-900/50 px-2.5 py-0.5 text-xs text-violet-300">
             Sold
+          </span>
+        )}
+        {freePostage && (
+          <span className="rounded-full bg-sky-900/50 px-2.5 py-0.5 text-xs text-sky-300">
+            Free P&P
+          </span>
+        )}
+        {(minPrice || maxPrice) && (
+          <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs text-slate-300">
+            {minPrice && maxPrice
+              ? `£${minPrice}–£${maxPrice}`
+              : minPrice
+                ? `£${minPrice}+`
+                : `Up to £${maxPrice}`}
           </span>
         )}
       </div>
