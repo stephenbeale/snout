@@ -9,6 +9,7 @@ import { useSearch } from "./hooks/useSearch";
 import { useSavedFilters } from "./hooks/useSavedFilters";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import SalesTab from "./components/SalesTab";
+import LinkBuilder from "./components/LinkBuilder";
 import { DEFAULT_FILTERS } from "./utils/constants";
 
 export default function App() {
@@ -60,6 +61,11 @@ export default function App() {
             includeTax={includeTax}
             onLoadMore={() => loadMore(keywords, filters)}
           />
+        </div>
+      )}
+      {tab === "links" && (
+        <div className="flex flex-col gap-4 p-4 pb-20">
+          <LinkBuilder />
         </div>
       )}
       {tab === "filters" && (
