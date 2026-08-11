@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import { useSales } from "../hooks/useSales";
 import SaleForm from "./SaleForm";
 import SaleSummary from "./SaleSummary";
 import SaleList from "./SaleList";
 
-export default function SalesTab({ includeTax, onToggleTax }) {
-  const { sales, stats, addSale, updateSale, removeSale } = useSales(includeTax);
+// Sales state is owned by App so the search tab can reference the same records.
+export default function SalesTab({
+  sales,
+  stats,
+  addSale,
+  updateSale,
+  removeSale,
+  includeTax,
+  onToggleTax,
+}) {
   const [editing, setEditing] = useState(null); // null | "new" | sale object
   const [armed, setArmed] = useState(null);
   const armedTimer = useRef(null);

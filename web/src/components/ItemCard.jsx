@@ -2,34 +2,25 @@ import { useState, useRef } from "react";
 import { formatGBP } from "../utils/formatters";
 import { calculateProfit, calculateFees, applyTax } from "../utils/fees";
 
-function estimateTimeToSell(market) {
-  if (!market) return null;
+/**
+ * Compare this listing's asking price against what the user actually realised
+ * on the same item. Undercutting a price you have never achieved is the
+ * mistake worth flagging.
+ */
+function comparePriceToOwnSales(totalPrice, ownSales) {
+  if (!ownSales) return null;
 
-  const { activeCount, soldCount } = market;
-  if (soldCount === null || soldCount === undefined) return null;
-
-  const total = soldCount + activeCount;
-  if (total === 0) return { label: "No data", bg: "bg-slate-700 text-slate-400" };
-
-  const sellThrough = soldCount / total;
-
-  // High active count = saturated market
-  if (activeCount > 500 && sellThrough < 0.3) {
-    return { label: "Saturated", bg: "bg-red-500/20 text-red-400" };
+  const ratio = totalPrice / ownSales.median;
+  if (ratio < 0.85) {
+    return { label: "Below your median", bg: "bg-green-500/20 text-green-400" };
   }
-  if (activeCount > 200 && sellThrough < 0.2) {
-    return { label: "High competition", bg: "bg-orange-500/20 text-orange-400" };
+  if (ratio > 1.15) {
+    return { label: "Above your median", bg: "bg-orange-500/20 text-orange-400" };
   }
-
-  // Sell-through rate drives the estimate
-  if (sellThrough > 0.6) return { label: "Fast seller", bg: "bg-green-500/20 text-green-400" };
-  if (sellThrough > 0.4) return { label: "< 1 week", bg: "bg-green-500/20 text-green-400" };
-  if (sellThrough > 0.25) return { label: "1-2 weeks", bg: "bg-amber-500/20 text-amber-400" };
-  if (sellThrough > 0.15) return { label: "2-4 weeks", bg: "bg-amber-500/20 text-amber-400" };
-  return { label: "Slow sell", bg: "bg-orange-500/20 text-orange-400" };
+  return { label: "At your median", bg: "bg-slate-700 text-slate-300" };
 }
 
-export default function ItemCard({ item, market, includeTax }) {
+export default function ItemCard({ item, market, ownSales, includeTax }) {
   const hasShipping = item.shipping_cost > 0;
   const [showCalc, setShowCalc] = useState(false);
   const [costInput, setCostInput] = useState("");
@@ -40,7 +31,7 @@ export default function ItemCard({ item, market, includeTax }) {
   const profit = includeTax ? applyTax(rawProfit) : rawProfit;
   const fees = calculateFees(item.total_price);
   const hasResult = costInput !== "";
-  const sellEstimate = estimateTimeToSell(market);
+  const priceComparison = comparePriceToOwnSales(item.total_price, ownSales);
 
   function openCalc(e) {
     e.preventDefault();
@@ -169,12 +160,16 @@ export default function ItemCard({ item, market, includeTax }) {
             {market && (
               <span className="rounded-full bg-slate-700 px-2 py-0.5 text-slate-300">
                 {market.activeCount} listed
-                {market.soldCount !== null && ` / ${market.soldCount} sold`}
               </span>
             )}
-            {sellEstimate && (
-              <span className={`rounded-full px-2 py-0.5 font-medium ${sellEstimate.bg}`}>
-                {sellEstimate.label}
+            {ownSales && (
+              <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-violet-300">
+                you sold {ownSales.count}× @ {formatGBP(ownSales.median)}
+              </span>
+            )}
+            {priceComparison && (
+              <span className={`rounded-full px-2 py-0.5 font-medium ${priceComparison.bg}`}>
+                {priceComparison.label}
               </span>
             )}
           </div>

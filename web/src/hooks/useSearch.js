@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { searchItems, searchSoldCount } from "../utils/api";
+import { searchItems } from "../utils/api";
 
 const MOCK_ITEMS = [
   { title: "Sony WH-1000XM5 Wireless Noise Cancelling Headphones - Black", item_price: 189.99, shipping_cost: 0, total_price: 189.99, condition: "New", url: "#", image_url: "https://placehold.co/160x160/1e293b/f59e0b?text=XM5" },
@@ -18,7 +18,7 @@ const MOCK_STATS = {
   max: 749.99,
 };
 
-const MOCK_MARKET = { activeCount: 47, soldCount: 83, soldAvg: 201.50 };
+const MOCK_MARKET = { activeCount: 47 };
 
 const USE_MOCK = false;
 
@@ -49,24 +49,16 @@ export function useSearch() {
     }
 
     try {
-      // Fire active + sold searches in parallel
-      const [data, soldData] = await Promise.all([
-        searchItems(keywords, filters, offset),
-        offset === 0 && !filters.showSold
-          ? searchSoldCount(keywords).catch(() => null)
-          : Promise.resolve(null),
-      ]);
-
-      const activeCount = data.pagination?.total || data.items?.length || 0;
+      const data = await searchItems(keywords, filters, offset);
 
       setResults((prev) => (offset === 0 ? data.items : [...prev, ...data.items]));
       setStats(data.stats);
       setPagination(data.pagination);
 
-      if (soldData) {
-        setMarket({ activeCount, soldCount: soldData.soldCount, soldAvg: soldData.soldAvg });
-      } else if (offset === 0) {
-        setMarket({ activeCount, soldCount: null, soldAvg: null });
+      if (offset === 0) {
+        setMarket({
+          activeCount: data.pagination?.total || data.items?.length || 0,
+        });
       }
     } catch (err) {
       setError(err.message || "Search failed");
