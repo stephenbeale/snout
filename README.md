@@ -26,17 +26,22 @@ eBay price analysis PWA for UK sellers. Search active listings, compare prices, 
 ### Backend
 
 ```bash
-cd snout
-pip install -r requirements.txt
-cp .env.example .env
+pip install -r snout/requirements.txt
+cp snout/.env.example snout/.env
 # Edit .env with your eBay developer credentials
-python app.py
+python -m snout.app
 ```
+
+Run from the repository root — `snout/app.py` uses relative imports, so
+invoking it directly (`python snout/app.py`) fails with `ImportError:
+attempted relative import with no known parent package`.
 
 Environment variables:
 - `EBAY_APP_ID` — eBay application ID (required)
 - `EBAY_CERT_ID` — eBay certificate ID (required for Browse API)
 - `DEFAULT_MARKETPLACE` — eBay marketplace ID (default: `EBAY_GB`)
+- `SNOUT_API_KEY` — if set, search endpoints require a matching `X-Snout-Key`
+  header; the frontend sends it from `VITE_SNOUT_API_KEY`
 
 ### Frontend
 
@@ -46,9 +51,13 @@ npm install
 npm run dev
 ```
 
-The dev server proxies `/api` requests to `http://localhost:5000`.
+The dev server proxies `/api` requests to `http://localhost:5000`. To bypass the
+proxy and call the API directly, set `VITE_API_URL` in `web/.env.local`.
 
-For production, set `VITE_API_URL` to your Flask API base URL.
+Frontend environment variables (`web/.env.local`):
+- `VITE_API_URL` — Flask API base URL; leave unset to use the dev proxy
+- `VITE_SNOUT_API_KEY` — must match the backend's `SNOUT_API_KEY`, or search
+  requests come back `401 Unauthorized`
 
 ### Build
 

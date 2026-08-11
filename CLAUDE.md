@@ -12,15 +12,19 @@ Snout is a Python Flask REST API for eBay price analysis. It helps resellers com
 # Install dependencies
 pip install -r snout/requirements.txt
 
-# Run the server (default port 5000)
-python snout/app.py
+# Run the server (default port 5000) — from the repo root
+python -m snout.app
 
 # Run with custom port
-PORT=8080 python snout/app.py
+PORT=8080 python -m snout.app
 
 # Run with debug mode
-FLASK_DEBUG=true python snout/app.py
+FLASK_DEBUG=true python -m snout.app
 ```
+
+`snout/app.py` uses relative imports, so it must be run as a module from the
+repo root. `python snout/app.py` fails with `ImportError: attempted relative
+import with no known parent package`.
 
 ## Environment Setup
 
