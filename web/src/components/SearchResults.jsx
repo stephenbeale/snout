@@ -1,6 +1,6 @@
 import ItemCard from "./ItemCard";
 
-export default function SearchResults({ items, loading, pagination, market, includeTax, onLoadMore }) {
+export default function SearchResults({ items, loading, pagination, market, ownSales, includeTax, onLoadMore }) {
   if (!items.length && !loading) return null;
 
   const hasMore = pagination && pagination.returned >= pagination.limit;
@@ -14,7 +14,13 @@ export default function SearchResults({ items, loading, pagination, market, incl
       </p>
 
       {items.map((item, i) => (
-        <ItemCard key={item.item_id || i} item={item} market={market} includeTax={includeTax} />
+        <ItemCard
+          key={item.item_id || i}
+          item={item}
+          market={market}
+          ownSales={ownSales}
+          includeTax={includeTax}
+        />
       ))}
 
       {hasMore && (

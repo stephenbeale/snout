@@ -300,3 +300,31 @@ Quick commands for interacting with Claude Code:
 - Documentation updated in 43b8f3d: "Update session notes: Test suite updates and notification testing"
 - Only uncommitted file is `.claude/settings.local.json` (local configuration, should not be committed)
 - The `rip-disc.ps1` file is untracked and unrelated to this project
+
+### 2026-08-11 - Docs Fix and Own-Sales Reference (replacing the dead sold-listings path)
+
+**Work Completed:**
+- Ran the full app (Flask backend + Vite frontend) against live eBay data and verified search, price stats, and the fee calculator in the browser.
+- Fixed stale run-command documentation in `README.md` and `CLAUDE.md`: `python app.py` / `python snout/app.py` fails with `ImportError: attempted relative import with no known parent package` because `snout/app.py` uses relative imports. Correct invocation is `python -m snout.app` from the repo root. Also documented `SNOUT_API_KEY` (backend) and `web/.env.local`'s `VITE_API_URL` / `VITE_SNOUT_API_KEY` (frontend) — a mismatch between the two silently 401s every search. Committed as `0d8d02f` on branch `fix/run-command-docs`.
+- Diagnosed why `/search/sold` always 502s: eBay decommissioned the Finding API on 2025-02-05, so `findCompletedItems` now returns HTTP 418. Its replacement, the Marketplace Insights API, is a Limited Release closed to new applicants — there is currently no supported way to read other sellers' sold prices via the API.
+- Removed the now-unreachable sold-listings UI: the Sold Items filter toggle, `searchSoldCount`, the `showSold` branch in `searchItems` (`web/src/hooks/useSearch.js`), `showSold` from `DEFAULT_FILTERS`, and `estimateTimeToSell` from item cards.
+- Added an own-sales reference feature instead: `web/src/utils/salesMatch.js` (deliberately narrow token-containment matching between a search query and the user's recorded sales) and `web/src/components/OwnSalesStats.jsx`. Item cards now show a "you sold N× @ £X" badge and a below/at/above-your-median comparison against current market listings.
+- Lifted `useSales` from `SalesTab` up into `App.jsx`, because `useLocalStorage` does not sync across separate hook instances — the Search tab and Sales tab would otherwise have held diverging copies of the same recorded-sales data.
+- Verified in browser: production build clean, console errors went from 1 to 0, and the own-sales panel showed correct maths (Avg/Median £7.74 from two sales at £8.99 and £6.49; market price shown as £2.28 below own median).
+- Committed as `b903eb7` "Replace dead sold-listings path with own-sales reference" on branch `feature/own-sales-reference`.
+
+**Work In Progress / Unfinished Git Workflows:**
+- Both `fix/run-command-docs` (`0d8d02f`) and `feature/own-sales-reference` (`b903eb7`) are complete, committed, and clean locally, but **not pushed and not merged** — pushing/merging was explicitly not authorized this session and needs the user to confirm first.
+- `feature/monetisation-nudges` also exists locally with a matching `origin` branch (from a prior session) — untouched this session.
+- No open PRs on the repo as of session close.
+
+**Next Steps:**
+1. Get user confirmation, then push both branches and open PRs (or merge directly per repo convention) — `fix/run-command-docs` first since it's a small, independent doc fix; `feature/own-sales-reference` second.
+2. Remove the now-fully-dead legacy code: `EbayFindingService` (backend), plus the `/search/sold`, `/search/active`, and `/search/compare` endpoints, and the `TestSearchEndpoints` / `TestCompareEndpoint` classes in `snout/tests/test_app.py` that exist only to test them. Nothing calls these endpoints anymore since the sold-listings UI was removed. Deliberately deferred as separate follow-up work.
+3. Consider whether `/search/active` and `/search/compare` have any remaining callers before deleting — confirm via a repo-wide grep first.
+
+**Technical Notes:**
+- eBay Finding API (`findCompletedItems`, used for sold listings) was decommissioned 2025-02-05 and now returns HTTP 418 for all requests — this is permanent, not a transient outage.
+- Marketplace Insights API (the documented replacement) is Limited Release / closed to new applicants, so there's no near-term path to restoring third-party sold-price lookups.
+- Own-sales matching in `salesMatch.js` is intentionally narrow (token containment) rather than fuzzy, to avoid false-positive matches skewing the reference price.
+- `useLocalStorage` does not broadcast changes across hook instances in the same tab — any state meant to be shared between components/tabs needs to be lifted to a common ancestor rather than called independently in each.

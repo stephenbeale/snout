@@ -1,29 +1,41 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Layout from "./components/Layout";
 import SearchBar from "./components/SearchBar";
 import FilterBar from "./components/FilterBar";
 import PriceStats from "./components/PriceStats";
+import OwnSalesStats from "./components/OwnSalesStats";
 import SearchResults from "./components/SearchResults";
 import SavedFilters from "./components/SavedFilters";
 import { useSearch } from "./hooks/useSearch";
 import { useSavedFilters } from "./hooks/useSavedFilters";
+import { useSales } from "./hooks/useSales";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import SalesTab from "./components/SalesTab";
 import LinkBuilder from "./components/LinkBuilder";
 import { DEFAULT_FILTERS } from "./utils/constants";
+import { matchSales, summariseSales } from "./utils/salesMatch";
 
 export default function App() {
   const [tab, setTab] = useState("search");
   const [includeTax, setIncludeTax] = useLocalStorage("snout-include-tax", false);
   const [keywords, setKeywords] = useState("");
+  // Keywords behind the current results — the input can drift while browsing.
+  const [searchedKeywords, setSearchedKeywords] = useState("");
   const [filters, setFilters] = useLocalStorage("snout-filters", DEFAULT_FILTERS);
 
   const { results, stats, market, pagination, loading, error, search, loadMore } =
     useSearch();
   const { saved, save, remove, load } = useSavedFilters();
+  const salesApi = useSales(includeTax);
+
+  const ownSales = useMemo(
+    () => summariseSales(matchSales(salesApi.sales, searchedKeywords)),
+    [salesApi.sales, searchedKeywords]
+  );
 
   const handleSearch = () => {
     if (!keywords.trim()) return;
+    setSearchedKeywords(keywords);
     search(keywords, filters);
   };
 
@@ -32,7 +44,10 @@ export default function App() {
     if (loaded.keywords) setKeywords(loaded.keywords);
     setFilters(loaded.filters);
     const searchKeywords = loaded.keywords || keywords;
-    if (searchKeywords.trim()) search(searchKeywords, loaded.filters);
+    if (searchKeywords.trim()) {
+      setSearchedKeywords(searchKeywords);
+      search(searchKeywords, loaded.filters);
+    }
     setTab("search");
   };
 
@@ -53,13 +68,17 @@ export default function App() {
             </div>
           )}
           {stats && <PriceStats stats={stats} />}
+          {stats && (
+            <OwnSalesStats ownSales={ownSales} marketMedian={stats.median} />
+          )}
           <SearchResults
             items={results}
             loading={loading}
             pagination={pagination}
             market={market}
+            ownSales={ownSales}
             includeTax={includeTax}
-            onLoadMore={() => loadMore(keywords, filters)}
+            onLoadMore={() => loadMore(searchedKeywords, filters)}
           />
         </div>
       )}
@@ -81,7 +100,15 @@ export default function App() {
         </div>
       )}
       {tab === "sales" && (
-        <SalesTab includeTax={includeTax} onToggleTax={setIncludeTax} />
+        <SalesTab
+          sales={salesApi.sales}
+          stats={salesApi.stats}
+          addSale={salesApi.addSale}
+          updateSale={salesApi.updateSale}
+          removeSale={salesApi.removeSale}
+          includeTax={includeTax}
+          onToggleTax={setIncludeTax}
+        />
       )}
     </Layout>
   );
