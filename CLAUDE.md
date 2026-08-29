@@ -328,3 +328,49 @@ Quick commands for interacting with Claude Code:
 - Marketplace Insights API (the documented replacement) is Limited Release / closed to new applicants, so there's no near-term path to restoring third-party sold-price lookups.
 - Own-sales matching in `salesMatch.js` is intentionally narrow (token containment) rather than fuzzy, to avoid false-positive matches skewing the reference price.
 - `useLocalStorage` does not broadcast changes across hook instances in the same tab — any state meant to be shared between components/tabs needs to be lifted to a common ancestor rather than called independently in each.
+
+### 2026-08-29 - PR #25 Merged (own-sales reference), Stale Branches Surfaced
+
+**Work Completed:**
+- Opened and merged PR #25 for the already-pushed `feature/own-sales-reference`
+  commit (`b903eb7`, carried over uncommitted-push from the 2026-08-11 entry
+  above): replaces the dead sold-listings path with the own-sales reference
+  feature.
+- No test framework exists in this repo (confirmed again) — verified via
+  `npm run build` instead of a test run.
+- Branch `feature/own-sales-reference` deleted both locally and on `origin`
+  after merge.
+
+**Session Verified Clean:**
+- `master` clean, up to date with `origin/master`, no uncommitted changes, no
+  unpushed commits, no open PRs.
+
+**Stale branches surfaced, explicitly NOT investigated or cleaned up this
+session (user chose to stop there) — still present at close:**
+- `fix/run-command-docs` (local + `origin`) — this is the *other* branch from
+  the 2026-08-11 entry above (`0d8d02f`, doc fixes); still un-merged. Diffs
+  against current `master` on many files (App.jsx, FilterBar.jsx, etc.),
+  meaning master has moved on a lot since — needs a fresh look, not a blind
+  merge.
+- `feature/monetisation-nudges` (local + `origin`) — its content (the Quidco
+  cashback nudge) already appears to be on `master` via squash-merge PR #22
+  (`4903f97`), but the branch itself is old and diffs heavily against current
+  `master` on unrelated files too. Likely safe to delete but not confirmed.
+- `origin/feature/api-security-hardening` (remote only, no local branch) —
+  already merged into `master` via a real merge commit (`3a2f625`,
+  "Merge pull request #21 from stephenbeale/feature/api-security-hardening"),
+  so this one specifically **is** confirmed safe to delete on GitHub — just
+  not done this session.
+
+**Next Steps:**
+1. Delete `origin/feature/api-security-hardening` on GitHub — confirmed
+   already merged (see above), no diff review needed, purely tidy-up.
+2. Decide fate of `fix/run-command-docs` — review whether its doc fixes are
+   still accurate given how much `master` has changed, then merge or close.
+3. Decide fate of `feature/monetisation-nudges` — confirm its unique content
+   really did land via PR #22 before deleting, since the current diff against
+   `master` is large.
+4. Carried forward from 2026-08-11: remove the now-fully-dead
+   `EbayFindingService` backend code and its now-unused
+   `/search/sold`/`/search/active`/`/search/compare` endpoints and their
+   tests — confirm no remaining callers first via a repo-wide grep.
