@@ -11,6 +11,7 @@
 
 - [x] **Default search presets** — built-in quick modes (Competition, Auctions, New Items) + custom user presets with save/load
   - "Sold Prices" mode blocked — Browse API can't search completed listings
+- [ ] **Make the live site usable by the public** — the GitHub Pages build (https://stephenbeale.github.io/snout/) was built with an empty `VITE_API_URL`, so searches go to `/snout/api/search` on github.io and 404. Host the Flask API somewhere public (with the eBay keys and `SNOUT_API_KEY` kept server-side), rebuild the frontend with `VITE_API_URL` set, and run the untested pytest suite. Once it works, add Snout back to the "More free tools by me" list on the ripdisc end screen.
 - [ ] **Phase 2: Sales tracking** — manual entry UI, profit calculations, sales history
 - [ ] **Phase 3: eBay OAuth** — Fulfillment API for order history, Finances API for actual fee data
 
